@@ -35,7 +35,7 @@ flowchart LR
     API --> LLM["LLM provider"]
 ```
 
-See [Architecture](docs/ARCHITECTURE.md), [Database design](docs/DATABASE.md), and [RAG pipeline](docs/RAG_PIPELINE.md) for the complete Phase 0 design.
+The diagram above summarizes the planned service boundaries. Implementation is proceeding incrementally from the Django and PostgreSQL foundation.
 
 ## Technology plan
 
@@ -58,9 +58,9 @@ Current foundation files:
 
 ```text
 .
-|-- AGENTS.md
 |-- README.md
 |-- .gitignore
+|-- .env.example
 |-- backend/
 |   |-- manage.py
 |   |-- pyproject.toml
@@ -70,21 +70,10 @@ Current foundation files:
 |-- docker/
 |   `-- postgres/init/
 |-- docker-compose.yml
-|-- docker-compose.dev.yml
-|-- .env.example
-`-- docs/
-    |-- ARCHITECTURE.md
-    |-- DATABASE.md
-    |-- DAILY_PROGRESS.md
-    |-- ENVIRONMENT.md
-    |-- PROJECT_CHECKLIST.md
-    |-- RAG_PIPELINE.md
-    |-- ROADMAP.md
-    `-- adr/
-        `-- 0001-use-postgresql-pgvector.md
+`-- docker-compose.dev.yml
 ```
 
-The `frontend/`, Docker, and infrastructure directories will be created during later Phase 1 slices rather than represented by empty placeholders.
+The `frontend/` and remaining infrastructure services will be created during later Phase 1 slices rather than represented by empty placeholders.
 
 ## Local setup
 
@@ -114,7 +103,7 @@ The development database is available on `localhost:5432`. The named volume pres
 
 ## Environment variables
 
-Secrets and environment-specific values must never be committed. Copy `.env.example` to the ignored `.env` file for local development. Development loads this root file without overriding variables already supplied by the shell. Production never loads `.env` and fails closed when required settings are absent. See [Environment plan](docs/ENVIRONMENT.md).
+Secrets and environment-specific values must never be committed. Copy `.env.example` to the ignored `.env` file for local development. Development loads this root file without overriding variables already supplied by the shell. Production never loads `.env` and fails closed when required settings are absent.
 
 ## Development commands
 
@@ -148,13 +137,11 @@ No persistent Django migrations should be applied until the custom user model is
 
 ## API documentation
 
-The API will live under `/api/v1/` and expose generated OpenAPI schema and interactive documentation. Endpoint examples will be added to `docs/API.md` alongside implementation phases.
+The API will live under `/api/v1/` and expose generated OpenAPI schema and interactive documentation. Endpoint examples will be added as the corresponding APIs are implemented.
 
 ## Security
 
 Tenant isolation is release-blocking. Every organization-owned query—including vector retrieval and citation lookup—must be scoped to the authenticated user's authorized organization and knowledge base. Uploaded documents are untrusted data and must never override system instructions.
-
-See [Architecture: tenant isolation](docs/ARCHITECTURE.md#tenant-isolation) and [RAG pipeline: prompt-injection boundaries](docs/RAG_PIPELINE.md#prompt-injection-boundaries).
 
 ## Deployment
 
@@ -171,11 +158,11 @@ Screenshots will be added after the relevant UI exists. No mock screenshot is pr
 - Nine backend tests exist; broader domain, integration, security, and frontend suites remain pending.
 - The repaired local virtual environment is usable but not portable and must not be committed.
 - Production settings fail closed and include an initial secure baseline, but full production hardening remains Phase 13 work.
-- Authentication, storage, streaming, and deployment details remain subject to their dedicated ADRs.
+- Authentication, storage, streaming, and deployment details remain future architectural decisions.
 
 ## Roadmap
 
-Development is divided into Phases 0 through 14. See [Roadmap](docs/ROADMAP.md) for deliverables, acceptance criteria, dependencies, and the exact next slice.
+Development is divided into Phases 0 through 14. Phase 1 currently focuses on the backend, database, background-task, and container foundations.
 
 ## License and contributions
 
