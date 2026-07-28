@@ -1,0 +1,46 @@
+[build-system]
+requires = ["setuptools==80.9.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "knowledgevault-ai-backend"
+version = "0.1.0"
+description = "Secure multi-user RAG platform backend"
+requires-python = ">=3.12,<3.15"
+dependencies = [
+    "Django==6.0.7",
+    "dj-database-url==3.1.2",
+    "pgvector==0.5.0",
+    "psycopg[binary]==3.3.4",
+    "python-dotenv==1.2.2",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest==9.1.1",
+    "pytest-django==4.12.0",
+    "ruff==0.15.22",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["apps*", "config*"]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings.testing"
+pythonpath = ["."]
+testpaths = ["apps", "tests"]
+python_files = ["test_*.py"]
+addopts = "-ra --strict-markers"
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+extend-exclude = ["migrations"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"

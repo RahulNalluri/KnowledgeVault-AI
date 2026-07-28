@@ -2,7 +2,7 @@
 
 KnowledgeVault AI is a planned multi-user retrieval-augmented generation (RAG) platform for securely organizing documents and asking grounded questions across private organizational knowledge bases.
 
-> **Project status:** Phase 0 (architecture and planning) is complete. Application code has not been scaffolded yet. The next approved slice is Phase 1A, described in the [roadmap](docs/ROADMAP.md).
+> **Project status:** Phase 0 is complete and Phase 1 is active. The Django foundation now has split environment settings, pinned dependencies, tested health endpoints, and a Dockerized PostgreSQL 17 database with pgvector. Redis, Celery, the backend container, and the frontend remain upcoming foundation work.
 
 ## Product vision
 
@@ -41,7 +41,7 @@ See [Architecture](docs/ARCHITECTURE.md), [Database design](docs/DATABASE.md), a
 
 | Area | Planned technology |
 | --- | --- |
-| Backend | Python 3.12, Django, Django REST Framework |
+| Backend | Python 3.12+ (3.13.5 verified), Django 6.0.7 |
 | Tasks | Celery and Redis |
 | Data | PostgreSQL, pgvector, PostgreSQL full-text search |
 | AI | Sentence Transformers behind an embedding interface; OpenRouter behind an LLM interface |
@@ -50,17 +50,28 @@ See [Architecture](docs/ARCHITECTURE.md), [Database design](docs/DATABASE.md), a
 | Infrastructure | Docker Compose, Nginx, Gunicorn/Uvicorn, S3-compatible production storage |
 | Quality | pytest, Ruff, mypy where practical, frontend unit/E2E tests, GitHub Actions |
 
-Exact dependency versions will be selected and pinned during Phase 1 after compatibility checks.
+Active backend dependencies and development tools are pinned in `backend/pyproject.toml`. Later-phase dependencies will be added only when their features are introduced.
 
 ## Repository layout
 
-Current Phase 0 files:
+Current foundation files:
 
 ```text
 .
 |-- AGENTS.md
 |-- README.md
 |-- .gitignore
+|-- backend/
+|   |-- manage.py
+|   |-- pyproject.toml
+|   |-- config/
+|   `-- apps/
+|       `-- health/
+|-- docker/
+|   `-- postgres/init/
+|-- docker-compose.yml
+|-- docker-compose.dev.yml
+|-- .env.example
 `-- docs/
     |-- ARCHITECTURE.md
     |-- DATABASE.md
@@ -73,35 +84,67 @@ Current Phase 0 files:
         `-- 0001-use-postgresql-pgvector.md
 ```
 
-The `backend/`, `frontend/`, Docker, and infrastructure directories will be created during Phase 1 rather than represented by empty placeholders.
+The `frontend/`, Docker, and infrastructure directories will be created during later Phase 1 slices rather than represented by empty placeholders.
 
 ## Local setup
 
-There is no runnable application in Phase 0. The existing local `venv/` is machine-specific, is excluded by `.gitignore`, and should not be committed.
-
-Phase 1 will document a one-command Docker development setup. The expected workflow will be:
-
-```bash
-cp .env.example .env
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
-```
-
-PowerShell equivalent:
+PowerShell setup from the repository root:
 
 ```powershell
 Copy-Item .env.example .env
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+python -m venv venv
+.\venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+python -m pip install --editable ".\backend[dev]"
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d postgres
 ```
 
-These commands are planned and will not work until Phase 1 creates the referenced files.
+Bash equivalent:
+
+```bash
+cp .env.example .env
+python -m venv venv
+source venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install --editable "./backend[dev]"
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d postgres
+```
+
+The development database is available on `localhost:5432`. The named volume preserves data when the container stops. Do not use the known development credentials from `.env.example` in any deployed environment.
 
 ## Environment variables
 
-Secrets and environment-specific values must never be committed. The complete variable plan, ownership, validation rules, and rollout order are in [Environment plan](docs/ENVIRONMENT.md). Phase 1 will provide a safe `.env.example` with non-secret placeholders.
+Secrets and environment-specific values must never be committed. Copy `.env.example` to the ignored `.env` file for local development. Development loads this root file without overriding variables already supplied by the shell. Production never loads `.env` and fails closed when required settings are absent. See [Environment plan](docs/ENVIRONMENT.md).
 
 ## Development commands
 
-Test, lint, migration, and Docker commands will be added when their configurations exist in Phase 1. No test suite currently exists, and no passing-test claim is made.
+Current verification commands:
+
+```powershell
+.\venv\Scripts\ruff.exe check backend
+.\venv\Scripts\ruff.exe format --check backend
+.\venv\Scripts\pytest.exe backend --config-file backend\pyproject.toml
+.\venv\Scripts\python.exe backend\manage.py check
+```
+
+The implemented operational endpoints are:
+
+- `GET /api/v1/health/live/` — confirms the Django process can serve requests.
+- `GET /api/v1/health/ready/` — confirms the configured database can answer a minimal query.
+
+Start Django locally after PostgreSQL is healthy:
+
+```powershell
+.\venv\Scripts\python.exe backend\manage.py runserver
+```
+
+Inspect the database and pgvector version:
+
+```powershell
+docker compose -f docker-compose.yml -f docker-compose.dev.yml exec -T postgres psql -U knowledgevault -d knowledgevault -c "SELECT current_setting('server_version'), extversion FROM pg_extension WHERE extname = 'vector';"
+```
+
+No persistent Django migrations should be applied until the custom user model is introduced.
 
 ## API documentation
 
@@ -123,10 +166,11 @@ Screenshots will be added after the relevant UI exists. No mock screenshot is pr
 
 ## Known limitations
 
-- The repository currently contains planning documentation only.
-- No backend, frontend, database, task worker, or container has been implemented.
-- No automated tests exist yet.
-- The local virtual environment discovered during assessment is not portable and its configured base Python executable is inaccessible on this machine.
+- The backend currently contains only the Django scaffold and health-check application.
+- PostgreSQL/pgvector and its development container are implemented; Redis, Celery, the Django container, and frontend are not.
+- Nine backend tests exist; broader domain, integration, security, and frontend suites remain pending.
+- The repaired local virtual environment is usable but not portable and must not be committed.
+- Production settings fail closed and include an initial secure baseline, but full production hardening remains Phase 13 work.
 - Authentication, storage, streaming, and deployment details remain subject to their dedicated ADRs.
 
 ## Roadmap

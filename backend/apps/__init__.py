@@ -1,0 +1,1 @@
+"""KnowledgeVault AI Django applications."""
