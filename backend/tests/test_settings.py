@@ -44,6 +44,7 @@ def test_production_settings_require_https_and_postgresql(monkeypatch) -> None:
         "DATABASE_URL",
         "postgresql://user:password@database:5432/knowledgevault",
     )
+    monkeypatch.setenv("REDIS_URL", "redis://redis:6379/0")
     sys.modules.pop(PRODUCTION_SETTINGS_MODULE, None)
 
     try:
@@ -54,5 +55,6 @@ def test_production_settings_require_https_and_postgresql(monkeypatch) -> None:
         assert production.SESSION_COOKIE_SECURE is True
         assert production.CSRF_COOKIE_SECURE is True
         assert production.DATABASES["default"]["ENGINE"] == ("django.db.backends.postgresql")
+        assert production.REDIS_URL == "redis://redis:6379/0"
     finally:
         sys.modules.pop(PRODUCTION_SETTINGS_MODULE, None)

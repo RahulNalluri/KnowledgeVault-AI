@@ -11,3 +11,7 @@ DATABASES = {
         "NAME": ":memory:",
     },
 }
+
+# Redis calls are mocked in unit tests; this value prevents accidental use of
+# a development database if a test constructs a client.
+REDIS_URL = "redis://unused:6379/15"

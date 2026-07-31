@@ -1,6 +1,5 @@
 from unittest.mock import patch
 
-from django.db import OperationalError
 from django.test import SimpleTestCase, TestCase
 from django.urls import reverse
 
@@ -19,7 +18,8 @@ class LivenessViewTests(SimpleTestCase):
 
 
 class ReadinessViewTests(TestCase):
-    def test_readiness_reports_available_database(self) -> None:
+    @patch("apps.health.views.redis_is_ready", return_value=True)
+    def test_readiness_reports_available_dependencies(self, _mock_redis) -> None:
         response = self.client.get(reverse("health:ready"))
 
         self.assertEqual(response.status_code, 200)
@@ -27,17 +27,16 @@ class ReadinessViewTests(TestCase):
             response.json(),
             {
                 "status": "ready",
-                "checks": {"database": "ok"},
+                "checks": {"database": "ok", "redis": "ok"},
             },
         )
 
-    @patch(
-        "apps.health.views.connection.cursor",
-        side_effect=OperationalError("database unavailable"),
-    )
+    @patch("apps.health.views.redis_is_ready", return_value=True)
+    @patch("apps.health.views.database_is_ready", return_value=False)
     def test_readiness_returns_safe_error_when_database_is_unavailable(
         self,
-        _mock_cursor,
+        _mock_database,
+        _mock_redis,
     ) -> None:
         response = self.client.get(reverse("health:ready"))
 
@@ -46,10 +45,25 @@ class ReadinessViewTests(TestCase):
             response.json(),
             {
                 "status": "not_ready",
-                "checks": {"database": "unavailable"},
+                "checks": {"database": "unavailable", "redis": "ok"},
             },
         )
-        self.assertNotContains(response, "database unavailable", status_code=503)
+
+    @patch("apps.health.views.redis_is_ready", return_value=False)
+    def test_readiness_returns_safe_error_when_redis_is_unavailable(
+        self,
+        _mock_redis,
+    ) -> None:
+        response = self.client.get(reverse("health:ready"))
+
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(
+            response.json(),
+            {
+                "status": "not_ready",
+                "checks": {"database": "ok", "redis": "unavailable"},
+            },
+        )
 
     def test_readiness_rejects_non_get_requests(self) -> None:
         response = self.client.post(reverse("health:ready"))

@@ -29,3 +29,5 @@ DATABASES = {
         conn_health_checks=True,
     ),
 }
+
+REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6380/0")

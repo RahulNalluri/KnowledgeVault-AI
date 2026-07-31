@@ -2,7 +2,7 @@
 
 KnowledgeVault AI is a planned multi-user retrieval-augmented generation (RAG) platform for securely organizing documents and asking grounded questions across private organizational knowledge bases.
 
-> **Project status:** Phase 0 is complete and Phase 1 is active. The Django foundation now has split environment settings, pinned dependencies, tested health endpoints, and a Dockerized PostgreSQL 17 database with pgvector. Redis, Celery, the backend container, and the frontend remain upcoming foundation work.
+> **Project status:** Phase 0 is complete and Phase 1 is active. The Django foundation now has split environment settings, pinned dependencies, tested health endpoints, PostgreSQL 17 with pgvector, and Redis. Celery, the backend container, and the frontend remain upcoming foundation work.
 
 ## Product vision
 
@@ -42,7 +42,7 @@ The diagram above summarizes the planned service boundaries. Implementation is p
 | Area | Planned technology |
 | --- | --- |
 | Backend | Python 3.12+ (3.13.5 verified), Django 6.0.7 |
-| Tasks | Celery and Redis |
+| Tasks | Redis 8.2; Celery is the next background-processing slice |
 | Data | PostgreSQL, pgvector, PostgreSQL full-text search |
 | AI | Sentence Transformers behind an embedding interface; OpenRouter behind an LLM interface |
 | Frontend | Next.js, React, TypeScript, Tailwind CSS, accessible UI primitives |
@@ -85,7 +85,7 @@ python -m venv venv
 .\venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
 python -m pip install --editable ".\backend[dev]"
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d postgres
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d postgres redis
 ```
 
 Bash equivalent:
@@ -96,10 +96,10 @@ python -m venv venv
 source venv/bin/activate
 python -m pip install --upgrade pip
 python -m pip install --editable "./backend[dev]"
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d postgres
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d postgres redis
 ```
 
-The development database is available on `localhost:5432`. The named volume preserves data when the container stops. Do not use the known development credentials from `.env.example` in any deployed environment.
+PostgreSQL is available on `localhost:5432` and Redis on `localhost:6380`. Redis uses a non-default host port to avoid conflicting with other local projects; containers still reach it on port `6379`. Named volumes preserve their data when containers stop. Do not use the known development credentials from `.env.example` in any deployed environment.
 
 ## Environment variables
 
@@ -119,9 +119,9 @@ Current verification commands:
 The implemented operational endpoints are:
 
 - `GET /api/v1/health/live/` — confirms the Django process can serve requests.
-- `GET /api/v1/health/ready/` — confirms the configured database can answer a minimal query.
+- `GET /api/v1/health/ready/` — confirms PostgreSQL and Redis are available.
 
-Start Django locally after PostgreSQL is healthy:
+Start Django locally after PostgreSQL and Redis are healthy:
 
 ```powershell
 .\venv\Scripts\python.exe backend\manage.py runserver
@@ -131,6 +131,12 @@ Inspect the database and pgvector version:
 
 ```powershell
 docker compose -f docker-compose.yml -f docker-compose.dev.yml exec -T postgres psql -U knowledgevault -d knowledgevault -c "SELECT current_setting('server_version'), extversion FROM pg_extension WHERE extname = 'vector';"
+```
+
+Verify Redis directly:
+
+```powershell
+docker compose -f docker-compose.yml -f docker-compose.dev.yml exec -T redis redis-cli ping
 ```
 
 No persistent Django migrations should be applied until the custom user model is introduced.
@@ -154,8 +160,8 @@ Screenshots will be added after the relevant UI exists. No mock screenshot is pr
 ## Known limitations
 
 - The backend currently contains only the Django scaffold and health-check application.
-- PostgreSQL/pgvector and its development container are implemented; Redis, Celery, the Django container, and frontend are not.
-- Nine backend tests exist; broader domain, integration, security, and frontend suites remain pending.
+- PostgreSQL/pgvector and Redis development containers are implemented; Celery, the Django container, and frontend are not.
+- Thirteen backend tests exist; broader domain, integration, security, and frontend suites remain pending.
 - The repaired local virtual environment is usable but not portable and must not be committed.
 - Production settings fail closed and include an initial secure baseline, but full production hardening remains Phase 13 work.
 - Authentication, storage, streaming, and deployment details remain future architectural decisions.

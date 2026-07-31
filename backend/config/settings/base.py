@@ -52,6 +52,9 @@ WSGI_APPLICATION = "config.wsgi.application"
 # Each environment defines its database explicitly.
 DATABASES: dict[str, dict[str, object]] = {}
 
+# Each environment also defines the Redis endpoint explicitly.
+REDIS_URL = ""
+
 AUTH_PASSWORD_VALIDATORS = [
     {
         "NAME": ("django.contrib.auth.password_validation.UserAttributeSimilarityValidator"),

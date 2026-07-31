@@ -1,18 +1,7 @@
-from django.db import DatabaseError, connection
 from django.http import HttpRequest, JsonResponse
 from django.views.decorators.http import require_GET
 
-
-def _database_is_ready() -> bool:
-    """Return whether Django can execute a minimal database query."""
-
-    try:
-        with connection.cursor() as cursor:
-            cursor.execute("SELECT 1")
-    except DatabaseError:
-        return False
-
-    return True
+from .checks import database_is_ready, redis_is_ready
 
 
 @require_GET
@@ -26,15 +15,18 @@ def liveness(request: HttpRequest) -> JsonResponse:
 def readiness(request: HttpRequest) -> JsonResponse:
     """Report whether required backend dependencies are available."""
 
-    database_ready = _database_is_ready()
-    status_code = 200 if database_ready else 503
+    checks = {
+        "database": database_is_ready(),
+        "redis": redis_is_ready(),
+    }
+    all_ready = all(checks.values())
 
     return JsonResponse(
         {
-            "status": "ready" if database_ready else "not_ready",
+            "status": "ready" if all_ready else "not_ready",
             "checks": {
-                "database": "ok" if database_ready else "unavailable",
+                name: "ok" if is_ready else "unavailable" for name, is_ready in checks.items()
             },
         },
-        status=status_code,
+        status=200 if all_ready else 503,
     )

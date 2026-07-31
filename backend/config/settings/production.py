@@ -32,6 +32,8 @@ DATABASES = {
     ),
 }
 
+REDIS_URL = _required_environment_value("REDIS_URL")
+
 CSRF_TRUSTED_ORIGINS = [
     origin.strip()
     for origin in _required_environment_value("DJANGO_CSRF_TRUSTED_ORIGINS").split(",")
