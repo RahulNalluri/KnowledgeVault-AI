@@ -1,5 +1,19 @@
 name: knowledgevault-ai
 
+x-backend-build: &backend-build
+  context: ./backend
+  dockerfile: Dockerfile
+
+x-backend-environment: &backend-environment
+  DJANGO_SETTINGS_MODULE: config.settings.development
+  DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-knowledgevault-development-only-key-not-for-production}
+  DJANGO_DEBUG: ${DJANGO_DEBUG:-true}
+  DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,backend}
+  DJANGO_CSRF_TRUSTED_ORIGINS: ${DJANGO_CSRF_TRUSTED_ORIGINS:-http://localhost:3000}
+  DATABASE_URL: postgresql://${POSTGRES_USER:-knowledgevault}:${POSTGRES_PASSWORD:-knowledgevault}@postgres:5432/${POSTGRES_DB:-knowledgevault}
+  REDIS_URL: redis://redis:6379/0
+  CELERY_BROKER_URL: redis://redis:6379/1
+
 services:
   postgres:
     image: pgvector/pgvector:0.8.2-pg17-bookworm
@@ -35,16 +49,30 @@ services:
       start_period: 5s
     restart: unless-stopped
 
+  backend:
+    build: *backend-build
+    command: ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+    environment: *backend-environment
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    expose:
+      - "8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health/ready/', timeout=5).close()"]
+      interval: 10s
+      timeout: 6s
+      retries: 5
+      start_period: 20s
+    init: true
+    restart: unless-stopped
+
   celery_worker:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
+    build: *backend-build
     command: ["celery", "-A", "config", "worker", "--loglevel=INFO", "--concurrency=${CELERY_WORKER_CONCURRENCY:-2}"]
-    environment:
-      DJANGO_SETTINGS_MODULE: config.settings.development
-      DATABASE_URL: postgresql://${POSTGRES_USER:-knowledgevault}:${POSTGRES_PASSWORD:-knowledgevault}@postgres:5432/${POSTGRES_DB:-knowledgevault}
-      REDIS_URL: redis://redis:6379/0
-      CELERY_BROKER_URL: redis://redis:6379/1
+    environment: *backend-environment
     depends_on:
       postgres:
         condition: service_healthy
@@ -56,6 +84,7 @@ services:
       timeout: 10s
       retries: 5
       start_period: 20s
+    init: true
     restart: unless-stopped
 
 volumes:

@@ -6,6 +6,7 @@ from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 
 PRODUCTION_SETTINGS_MODULE = "config.settings.production"
+DEVELOPMENT_SETTINGS_MODULE = "config.settings.development"
 
 
 def test_automated_tests_use_isolated_sqlite_database() -> None:
@@ -17,6 +18,26 @@ def test_automated_tests_use_isolated_sqlite_database() -> None:
 
 def test_automated_tests_do_not_require_external_ai_credentials() -> None:
     assert not hasattr(settings, "OPENROUTER_API_KEY")
+
+
+def test_development_settings_parse_container_hosts_and_origins(monkeypatch) -> None:
+    monkeypatch.setenv("DJANGO_ALLOWED_HOSTS", "localhost,backend")
+    monkeypatch.setenv(
+        "DJANGO_CSRF_TRUSTED_ORIGINS",
+        "http://localhost:3000,http://localhost:8000",
+    )
+    sys.modules.pop(DEVELOPMENT_SETTINGS_MODULE, None)
+
+    try:
+        development = importlib.import_module(DEVELOPMENT_SETTINGS_MODULE)
+
+        assert development.ALLOWED_HOSTS == ["localhost", "backend"]
+        assert development.CSRF_TRUSTED_ORIGINS == [
+            "http://localhost:3000",
+            "http://localhost:8000",
+        ]
+    finally:
+        sys.modules.pop(DEVELOPMENT_SETTINGS_MODULE, None)
 
 
 def test_production_settings_fail_when_secret_is_missing(monkeypatch) -> None:
