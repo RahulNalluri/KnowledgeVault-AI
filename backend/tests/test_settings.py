@@ -7,6 +7,19 @@ from django.core.exceptions import ImproperlyConfigured
 
 PRODUCTION_SETTINGS_MODULE = "config.settings.production"
 DEVELOPMENT_SETTINGS_MODULE = "config.settings.development"
+PRODUCTION_ENVIRONMENT = {
+    "DJANGO_SECRET_KEY": "production-test-secret",
+    "DJANGO_ALLOWED_HOSTS": "app.example.com",
+    "DJANGO_CSRF_TRUSTED_ORIGINS": "https://app.example.com",
+    "DATABASE_URL": "postgresql://user:password@database:5432/knowledgevault",
+    "REDIS_URL": "redis://redis:6379/0",
+    "CELERY_BROKER_URL": "redis://redis:6379/1",
+}
+
+
+def set_production_environment(monkeypatch) -> None:
+    for name, value in PRODUCTION_ENVIRONMENT.items():
+        monkeypatch.setenv(name, value)
 
 
 def test_automated_tests_use_isolated_sqlite_database() -> None:
@@ -40,14 +53,19 @@ def test_development_settings_parse_container_hosts_and_origins(monkeypatch) -> 
         sys.modules.pop(DEVELOPMENT_SETTINGS_MODULE, None)
 
 
-def test_production_settings_fail_when_secret_is_missing(monkeypatch) -> None:
-    monkeypatch.delenv("DJANGO_SECRET_KEY", raising=False)
+@pytest.mark.parametrize("missing_name", PRODUCTION_ENVIRONMENT)
+def test_production_settings_fail_when_required_value_is_missing(
+    monkeypatch,
+    missing_name,
+) -> None:
+    set_production_environment(monkeypatch)
+    monkeypatch.delenv(missing_name)
     sys.modules.pop(PRODUCTION_SETTINGS_MODULE, None)
 
     try:
         with pytest.raises(
             ImproperlyConfigured,
-            match="DJANGO_SECRET_KEY",
+            match=missing_name,
         ):
             importlib.import_module(PRODUCTION_SETTINGS_MODULE)
     finally:
@@ -55,18 +73,7 @@ def test_production_settings_fail_when_secret_is_missing(monkeypatch) -> None:
 
 
 def test_production_settings_require_https_and_postgresql(monkeypatch) -> None:
-    monkeypatch.setenv("DJANGO_SECRET_KEY", "production-test-secret")
-    monkeypatch.setenv("DJANGO_ALLOWED_HOSTS", "app.example.com")
-    monkeypatch.setenv(
-        "DJANGO_CSRF_TRUSTED_ORIGINS",
-        "https://app.example.com",
-    )
-    monkeypatch.setenv(
-        "DATABASE_URL",
-        "postgresql://user:password@database:5432/knowledgevault",
-    )
-    monkeypatch.setenv("REDIS_URL", "redis://redis:6379/0")
-    monkeypatch.setenv("CELERY_BROKER_URL", "redis://redis:6379/1")
+    set_production_environment(monkeypatch)
     sys.modules.pop(PRODUCTION_SETTINGS_MODULE, None)
 
     try:

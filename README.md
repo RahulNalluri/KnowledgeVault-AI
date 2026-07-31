@@ -48,7 +48,7 @@ The diagram above summarizes the planned service boundaries. Implementation is p
 | Frontend | Next.js, React, TypeScript, Tailwind CSS, accessible UI primitives |
 | API | Versioned REST API with OpenAPI via drf-spectacular |
 | Infrastructure | Docker Compose, Nginx, Gunicorn/Uvicorn, S3-compatible production storage |
-| Quality | pytest, Ruff, mypy where practical, frontend unit/E2E tests, GitHub Actions |
+| Quality | pytest, pytest-cov, Ruff, mypy where practical, frontend unit/E2E tests, GitHub Actions |
 
 Active backend dependencies and development tools are pinned in `backend/pyproject.toml`. Later-phase dependencies will be added only when their features are introduced.
 
@@ -117,6 +117,8 @@ Current verification commands:
 .\venv\Scripts\python.exe backend\manage.py check
 ```
 
+The pytest command measures branch coverage for `apps` and `config` and fails below 90%.
+
 The implemented operational endpoints are:
 
 - `GET /api/v1/health/live/` — confirms the Django process can serve requests.
@@ -181,7 +183,7 @@ Screenshots will be added after the relevant UI exists. No mock screenshot is pr
 
 - The backend currently contains only the Django scaffold and health-check application.
 - The Django API, PostgreSQL/pgvector, Redis, and Celery worker development services are implemented; the frontend is not.
-- Twenty backend tests exist; broader domain, integration, security, and frontend suites remain pending.
+- Thirty-two backend tests exist with 100% foundation coverage and a 90% minimum gate; broader domain, integration, security, and frontend suites remain pending.
 - The repaired local virtual environment is usable but not portable and must not be committed.
 - Production settings fail closed and include an initial secure baseline, but full production hardening remains Phase 13 work.
 - Authentication, storage, streaming, and deployment details remain future architectural decisions.

@@ -1,10 +1,28 @@
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 
+from django.db import DatabaseError
 from django.test import SimpleTestCase, override_settings
 from kombu.exceptions import OperationalError
 from redis.exceptions import ConnectionError
 
-from apps.health.checks import celery_worker_is_ready, redis_is_ready
+from apps.health.checks import celery_worker_is_ready, database_is_ready, redis_is_ready
+
+
+class DatabaseReadinessCheckTests(SimpleTestCase):
+    @patch("apps.health.checks.connection")
+    def test_returns_true_when_minimal_query_succeeds(self, mock_connection) -> None:
+        cursor = MagicMock()
+        mock_connection.cursor.return_value.__enter__.return_value = cursor
+
+        self.assertTrue(database_is_ready())
+
+        cursor.execute.assert_called_once_with("SELECT 1")
+
+    @patch("apps.health.checks.connection")
+    def test_returns_false_when_database_query_fails(self, mock_connection) -> None:
+        mock_connection.cursor.side_effect = DatabaseError("database unavailable")
+
+        self.assertFalse(database_is_ready())
 
 
 @override_settings(REDIS_URL="redis://redis.example:6379/0")
@@ -50,6 +68,12 @@ class CeleryWorkerReadinessCheckTests(SimpleTestCase):
 
     @patch("apps.health.checks.celery_app.control.ping", return_value=[])
     def test_returns_false_when_no_workers_respond(self, _mock_ping) -> None:
+        self.assertFalse(celery_worker_is_ready())
+
+    @patch("apps.health.checks.celery_app.control.ping")
+    def test_ignores_malformed_worker_replies(self, mock_ping) -> None:
+        mock_ping.return_value = [None, {"celery@worker": "unexpected"}]
+
         self.assertFalse(celery_worker_is_ready())
 
     @patch(
