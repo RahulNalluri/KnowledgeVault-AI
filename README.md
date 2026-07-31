@@ -120,7 +120,9 @@ Current verification commands:
 The implemented operational endpoints are:
 
 - `GET /api/v1/health/live/` — confirms the Django process can serve requests.
-- `GET /api/v1/health/ready/` — confirms PostgreSQL and Redis are available.
+- `GET /api/v1/health/ready/` — confirms PostgreSQL, Redis, and at least one Celery worker are available.
+
+Readiness returns HTTP `503` with a safe per-dependency status when any required service is unavailable. Liveness remains dependency-free so the Django process can be distinguished from its supporting services.
 
 The Docker backend uses Django's development server with source-code mounting and automatic reload. To run Django directly from the virtual environment instead:
 
@@ -179,7 +181,7 @@ Screenshots will be added after the relevant UI exists. No mock screenshot is pr
 
 - The backend currently contains only the Django scaffold and health-check application.
 - The Django API, PostgreSQL/pgvector, Redis, and Celery worker development services are implemented; the frontend is not.
-- Sixteen backend tests exist; broader domain, integration, security, and frontend suites remain pending.
+- Twenty backend tests exist; broader domain, integration, security, and frontend suites remain pending.
 - The repaired local virtual environment is usable but not portable and must not be committed.
 - Production settings fail closed and include an initial secure baseline, but full production hardening remains Phase 13 work.
 - Authentication, storage, streaming, and deployment details remain future architectural decisions.

@@ -1,7 +1,7 @@
 from django.http import HttpRequest, JsonResponse
 from django.views.decorators.http import require_GET
 
-from .checks import database_is_ready, redis_is_ready
+from .checks import celery_worker_is_ready, database_is_ready, redis_is_ready
 
 
 @require_GET
@@ -18,6 +18,7 @@ def readiness(request: HttpRequest) -> JsonResponse:
     checks = {
         "database": database_is_ready(),
         "redis": redis_is_ready(),
+        "celery_worker": celery_worker_is_ready(),
     }
     all_ready = all(checks.values())
 

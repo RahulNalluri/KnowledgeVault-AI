@@ -1,7 +1,11 @@
+from celery.exceptions import CeleryError
 from django.conf import settings
 from django.db import DatabaseError, connection
+from kombu.exceptions import KombuError
 from redis import Redis
 from redis.exceptions import RedisError
+
+from config.celery import app as celery_app
 
 
 def database_is_ready() -> bool:
@@ -32,3 +36,19 @@ def redis_is_ready() -> bool:
     finally:
         if client is not None:
             client.close()
+
+
+def celery_worker_is_ready() -> bool:
+    """Return whether at least one Celery worker responds to a control ping."""
+
+    try:
+        replies = celery_app.control.ping(timeout=1.0)
+    except (CeleryError, KombuError, RedisError, OSError, ValueError):
+        return False
+
+    return any(
+        isinstance(status, dict) and status.get("ok") == "pong"
+        for reply in replies or []
+        if isinstance(reply, dict)
+        for status in reply.values()
+    )

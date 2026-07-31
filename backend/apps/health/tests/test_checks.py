@@ -1,9 +1,10 @@
 from unittest.mock import Mock, patch
 
 from django.test import SimpleTestCase, override_settings
+from kombu.exceptions import OperationalError
 from redis.exceptions import ConnectionError
 
-from apps.health.checks import redis_is_ready
+from apps.health.checks import celery_worker_is_ready, redis_is_ready
 
 
 @override_settings(REDIS_URL="redis://redis.example:6379/0")
@@ -36,3 +37,24 @@ class RedisReadinessCheckTests(SimpleTestCase):
     @override_settings(REDIS_URL="not-a-redis-url")
     def test_returns_false_for_an_invalid_url(self) -> None:
         self.assertFalse(redis_is_ready())
+
+
+class CeleryWorkerReadinessCheckTests(SimpleTestCase):
+    @patch("apps.health.checks.celery_app.control.ping")
+    def test_returns_true_when_a_worker_responds_with_pong(self, mock_ping) -> None:
+        mock_ping.return_value = [{"celery@worker": {"ok": "pong"}}]
+
+        self.assertTrue(celery_worker_is_ready())
+
+        mock_ping.assert_called_once_with(timeout=1.0)
+
+    @patch("apps.health.checks.celery_app.control.ping", return_value=[])
+    def test_returns_false_when_no_workers_respond(self, _mock_ping) -> None:
+        self.assertFalse(celery_worker_is_ready())
+
+    @patch(
+        "apps.health.checks.celery_app.control.ping",
+        side_effect=OperationalError("broker unavailable"),
+    )
+    def test_returns_false_when_the_broker_is_unavailable(self, _mock_ping) -> None:
+        self.assertFalse(celery_worker_is_ready())
