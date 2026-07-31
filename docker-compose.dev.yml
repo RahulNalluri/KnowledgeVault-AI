@@ -5,3 +5,6 @@ services:
   redis:
     ports:
       - "${REDIS_PORT:-6380}:6379"
+  celery_worker:
+    volumes:
+      - ./backend:/app

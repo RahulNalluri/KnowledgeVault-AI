@@ -2,7 +2,7 @@
 
 KnowledgeVault AI is a planned multi-user retrieval-augmented generation (RAG) platform for securely organizing documents and asking grounded questions across private organizational knowledge bases.
 
-> **Project status:** Phase 0 is complete and Phase 1 is active. The Django foundation now has split environment settings, pinned dependencies, tested health endpoints, PostgreSQL 17 with pgvector, and Redis. Celery, the backend container, and the frontend remain upcoming foundation work.
+> **Project status:** Phase 0 is complete and Phase 1 is active. The Django foundation now has split environment settings, tested health endpoints, PostgreSQL 17 with pgvector, Redis, and a healthy Celery worker. The Django API container and frontend remain upcoming foundation work.
 
 ## Product vision
 
@@ -42,7 +42,7 @@ The diagram above summarizes the planned service boundaries. Implementation is p
 | Area | Planned technology |
 | --- | --- |
 | Backend | Python 3.12+ (3.13.5 verified), Django 6.0.7 |
-| Tasks | Redis 8.2; Celery is the next background-processing slice |
+| Tasks | Celery 5.6 with Redis 8.2 as the broker |
 | Data | PostgreSQL, pgvector, PostgreSQL full-text search |
 | AI | Sentence Transformers behind an embedding interface; OpenRouter behind an LLM interface |
 | Frontend | Next.js, React, TypeScript, Tailwind CSS, accessible UI primitives |
@@ -62,9 +62,10 @@ Current foundation files:
 |-- .gitignore
 |-- .env.example
 |-- backend/
+|   |-- Dockerfile
 |   |-- manage.py
 |   |-- pyproject.toml
-|   |-- config/
+|   |-- config/celery.py
 |   `-- apps/
 |       `-- health/
 |-- docker/
@@ -85,7 +86,7 @@ python -m venv venv
 .\venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
 python -m pip install --editable ".\backend[dev]"
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d postgres redis
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build postgres redis celery_worker
 ```
 
 Bash equivalent:
@@ -96,7 +97,7 @@ python -m venv venv
 source venv/bin/activate
 python -m pip install --upgrade pip
 python -m pip install --editable "./backend[dev]"
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d postgres redis
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build postgres redis celery_worker
 ```
 
 PostgreSQL is available on `localhost:5432` and Redis on `localhost:6380`. Redis uses a non-default host port to avoid conflicting with other local projects; containers still reach it on port `6379`. Named volumes preserve their data when containers stop. Do not use the known development credentials from `.env.example` in any deployed environment.
@@ -121,7 +122,7 @@ The implemented operational endpoints are:
 - `GET /api/v1/health/live/` — confirms the Django process can serve requests.
 - `GET /api/v1/health/ready/` — confirms PostgreSQL and Redis are available.
 
-Start Django locally after PostgreSQL and Redis are healthy:
+Start Django locally after PostgreSQL, Redis, and the Celery worker are healthy:
 
 ```powershell
 .\venv\Scripts\python.exe backend\manage.py runserver
@@ -138,6 +139,14 @@ Verify Redis directly:
 ```powershell
 docker compose -f docker-compose.yml -f docker-compose.dev.yml exec -T redis redis-cli ping
 ```
+
+Verify the Celery worker directly:
+
+```powershell
+docker compose -f docker-compose.yml -f docker-compose.dev.yml exec -T celery_worker celery -A config inspect ping --timeout 5
+```
+
+Tasks use JSON-only messages, late acknowledgement, one-message prefetch, bounded execution time, and no result backend by default. Domain workflows will store durable progress and outcomes in PostgreSQL when their models are introduced.
 
 No persistent Django migrations should be applied until the custom user model is introduced.
 
@@ -160,8 +169,8 @@ Screenshots will be added after the relevant UI exists. No mock screenshot is pr
 ## Known limitations
 
 - The backend currently contains only the Django scaffold and health-check application.
-- PostgreSQL/pgvector and Redis development containers are implemented; Celery, the Django container, and frontend are not.
-- Thirteen backend tests exist; broader domain, integration, security, and frontend suites remain pending.
+- PostgreSQL/pgvector, Redis, and the Celery worker are implemented; the Django API service and frontend are not.
+- Fifteen backend tests exist; broader domain, integration, security, and frontend suites remain pending.
 - The repaired local virtual environment is usable but not portable and must not be committed.
 - Production settings fail closed and include an initial secure baseline, but full production hardening remains Phase 13 work.
 - Authentication, storage, streaming, and deployment details remain future architectural decisions.

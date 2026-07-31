@@ -33,6 +33,7 @@ DATABASES = {
 }
 
 REDIS_URL = _required_environment_value("REDIS_URL")
+CELERY_BROKER_URL = _required_environment_value("CELERY_BROKER_URL")
 
 CSRF_TRUSTED_ORIGINS = [
     origin.strip()

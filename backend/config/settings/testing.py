@@ -15,3 +15,6 @@ DATABASES = {
 # Redis calls are mocked in unit tests; this value prevents accidental use of
 # a development database if a test constructs a client.
 REDIS_URL = "redis://unused:6379/15"
+CELERY_BROKER_URL = "memory://"
+CELERY_TASK_ALWAYS_EAGER = True
+CELERY_TASK_EAGER_PROPAGATES = True
