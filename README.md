@@ -2,7 +2,7 @@
 
 KnowledgeVault AI is a planned multi-user retrieval-augmented generation (RAG) platform for securely organizing documents and asking grounded questions across private organizational knowledge bases.
 
-> **Project status:** Phase 0 is complete and Phase 1 is active. The containerized Django API, PostgreSQL 17 with pgvector, Redis, and Celery worker are healthy and integrated. The frontend remains the next major foundation slice.
+> **Project status:** The backend portion of Phase 1 is complete, while the typed frontend remains pending. Phase 2 identity work has started with the custom email user model and first PostgreSQL migrations completed before authentication APIs are introduced.
 
 ## Product vision
 
@@ -67,6 +67,7 @@ Current foundation files:
 |   |-- pyproject.toml
 |   |-- config/celery.py
 |   `-- apps/
+|       |-- accounts/
 |       `-- health/
 |-- docker/
 |   `-- postgres/init/
@@ -87,6 +88,7 @@ python -m venv venv
 python -m pip install --upgrade pip
 python -m pip install --editable ".\backend[dev]"
 docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+docker compose -f docker-compose.yml -f docker-compose.dev.yml exec -T backend python manage.py migrate
 ```
 
 Bash equivalent:
@@ -98,6 +100,7 @@ source venv/bin/activate
 python -m pip install --upgrade pip
 python -m pip install --editable "./backend[dev]"
 docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+docker compose -f docker-compose.yml -f docker-compose.dev.yml exec -T backend python manage.py migrate
 ```
 
 The Django API is available on `localhost:8000`, PostgreSQL on `localhost:5432`, and Redis on `localhost:6380`. Redis uses a non-default host port to avoid conflicting with other local projects; containers still reach it on port `6379`. Named volumes preserve database and Redis data when containers stop. Do not use the known development credentials from `.env.example` in any deployed environment.
@@ -118,6 +121,10 @@ Current verification commands:
 ```
 
 The pytest command measures branch coverage for `apps` and `config` and fails below 90%.
+
+## Accounts foundation
+
+The project uses `accounts.User` from its first migration. Users have UUID primary keys, normalized email login identities, full names, optional avatars, active/staff flags, email-verification state, password hashes, login dates, and audit timestamps. PostgreSQL enforces both normal uniqueness and case-insensitive email uniqueness. Django Admin uses the custom model and never exposes password hashes as editable plain text.
 
 The implemented operational endpoints are:
 
@@ -161,7 +168,7 @@ The backend container waits for healthy PostgreSQL and Redis services, runs as a
 
 Tasks use JSON-only messages, late acknowledgement, one-message prefetch, bounded execution time, and no result backend by default. Domain workflows will store durable progress and outcomes in PostgreSQL when their models are introduced.
 
-No persistent Django migrations should be applied until the custom user model is introduced.
+Migrations are applied explicitly rather than during container startup. The initial accounts and Django migrations are now safe to apply because the custom user model was created first.
 
 ## API documentation
 
@@ -181,9 +188,9 @@ Screenshots will be added after the relevant UI exists. No mock screenshot is pr
 
 ## Known limitations
 
-- The backend currently contains only the Django scaffold and health-check application.
+- The backend currently contains the accounts foundation and health-check application; registration and login APIs are not implemented yet.
 - The Django API, PostgreSQL/pgvector, Redis, and Celery worker development services are implemented; the frontend is not.
-- Thirty-two backend tests exist with 100% foundation coverage and a 90% minimum gate; broader domain, integration, security, and frontend suites remain pending.
+- Forty-five backend tests pass with 100% measured coverage and a 90% minimum gate; broader authentication, domain, integration, security, and frontend suites remain pending.
 - The repaired local virtual environment is usable but not portable and must not be committed.
 - Production settings fail closed and include an initial secure baseline, but full production hardening remains Phase 13 work.
 - Authentication, storage, streaming, and deployment details remain future architectural decisions.

@@ -40,3 +40,6 @@ DATABASES = {
 
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6380/0")
 CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://localhost:6380/1")
+
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
