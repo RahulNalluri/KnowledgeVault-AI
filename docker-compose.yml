@@ -10,6 +10,7 @@ x-backend-environment: &backend-environment
   DJANGO_DEBUG: ${DJANGO_DEBUG:-true}
   DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,backend}
   DJANGO_CSRF_TRUSTED_ORIGINS: ${DJANGO_CSRF_TRUSTED_ORIGINS:-http://localhost:3000}
+  KV_CORS_ALLOWED_ORIGINS: ${KV_CORS_ALLOWED_ORIGINS:-http://localhost:3000}
   DATABASE_URL: postgresql://${POSTGRES_USER:-knowledgevault}:${POSTGRES_PASSWORD:-knowledgevault}@postgres:5432/${POSTGRES_DB:-knowledgevault}
   REDIS_URL: redis://redis:6379/0
   CELERY_BROKER_URL: redis://redis:6379/1

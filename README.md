@@ -2,7 +2,7 @@
 
 KnowledgeVault AI is a planned multi-user retrieval-augmented generation (RAG) platform for securely organizing documents and asking grounded questions across private organizational knowledge bases.
 
-> **Project status:** The backend portion of Phase 1 is complete, while the typed frontend remains pending. Phase 2 identity work has started with the custom email user model and first PostgreSQL migrations completed before authentication APIs are introduced.
+> **Project status:** The backend portion of Phase 1 is complete, while the typed frontend remains pending. Phase 2 now includes the custom email user model and a secure Django REST Framework API foundation; authentication endpoints are the next slice.
 
 ## Product vision
 
@@ -46,7 +46,7 @@ The diagram above summarizes the planned service boundaries. Implementation is p
 | Data | PostgreSQL, pgvector, PostgreSQL full-text search |
 | AI | Sentence Transformers behind an embedding interface; OpenRouter behind an LLM interface |
 | Frontend | Next.js, React, TypeScript, Tailwind CSS, accessible UI primitives |
-| API | Versioned REST API with OpenAPI via drf-spectacular |
+| API | Django REST Framework 3.17.1, django-filter, CORS allow-listing, and OpenAPI via drf-spectacular |
 | Infrastructure | Docker Compose, Nginx, Gunicorn/Uvicorn, S3-compatible production storage |
 | Quality | pytest, pytest-cov, Ruff, mypy where practical, frontend unit/E2E tests, GitHub Actions |
 
@@ -131,6 +131,8 @@ The implemented operational endpoints are:
 - `GET /api/v1/health/live/` — confirms the Django process can serve requests.
 - `GET /api/v1/health/ready/` — confirms PostgreSQL, Redis, and at least one Celery worker are available.
 
+The REST API uses authenticated access by default, JSON-only requests and responses, bounded page-number pagination, filtering/search/ordering backends, request throttling, and an `X-Request-ID` response header. API failures use a consistent envelope containing a safe error code, message, details, and request ID.
+
 Readiness returns HTTP `503` with a safe per-dependency status when any required service is unavailable. Liveness remains dependency-free so the Django process can be distinguished from its supporting services.
 
 The Docker backend uses Django's development server with source-code mounting and automatic reload. To run Django directly from the virtual environment instead:
@@ -172,7 +174,7 @@ Migrations are applied explicitly rather than during container startup. The init
 
 ## API documentation
 
-The API will live under `/api/v1/` and expose generated OpenAPI schema and interactive documentation. Endpoint examples will be added as the corresponding APIs are implemented.
+The versioned API lives under `/api/v1/`. The generated OpenAPI schema is available at `GET /api/v1/schema/`, and interactive Swagger documentation is available at `GET /api/v1/docs/`. Both documentation endpoints and the health endpoints are intentionally public; application endpoints require authentication by default. Endpoint examples will be added as product APIs are implemented.
 
 ## Security
 
@@ -188,9 +190,9 @@ Screenshots will be added after the relevant UI exists. No mock screenshot is pr
 
 ## Known limitations
 
-- The backend currently contains the accounts foundation and health-check application; registration and login APIs are not implemented yet.
+- The backend currently contains the accounts, health-check, and REST API foundations; registration, login, and product APIs are not implemented yet.
 - The Django API, PostgreSQL/pgvector, Redis, and Celery worker development services are implemented; the frontend is not.
-- Forty-five backend tests pass with 100% measured coverage and a 90% minimum gate; broader authentication, domain, integration, security, and frontend suites remain pending.
+- Fifty-eight backend tests pass with 100% measured coverage and a 90% minimum gate; broader authentication, domain, integration, security, and frontend suites remain pending.
 - The repaired local virtual environment is usable but not portable and must not be committed.
 - Production settings fail closed and include an initial secure baseline, but full production hardening remains Phase 13 work.
 - Authentication, storage, streaming, and deployment details remain future architectural decisions.

@@ -40,6 +40,11 @@ CSRF_TRUSTED_ORIGINS = [
     for origin in _required_environment_value("DJANGO_CSRF_TRUSTED_ORIGINS").split(",")
     if origin.strip()
 ]
+CORS_ALLOWED_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv("KV_CORS_ALLOWED_ORIGINS", "").split(",")
+    if origin.strip()
+]
 
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True

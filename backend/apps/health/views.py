@@ -1,18 +1,43 @@
-from django.http import HttpRequest, JsonResponse
-from django.views.decorators.http import require_GET
+from drf_spectacular.utils import extend_schema
+from rest_framework.decorators import (
+    api_view,
+    authentication_classes,
+    permission_classes,
+    throttle_classes,
+)
+from rest_framework.permissions import AllowAny
+from rest_framework.request import Request
+from rest_framework.response import Response
 
 from .checks import celery_worker_is_ready, database_is_ready, redis_is_ready
+from .serializers import LivenessSerializer, ReadinessSerializer
 
 
-@require_GET
-def liveness(request: HttpRequest) -> JsonResponse:
+@extend_schema(
+    tags=["Health"],
+    auth=[],
+    responses={200: LivenessSerializer},
+)
+@api_view(["GET"])
+@authentication_classes([])
+@permission_classes([AllowAny])
+@throttle_classes([])
+def liveness(request: Request) -> Response:
     """Report that the Django process can serve HTTP requests."""
 
-    return JsonResponse({"status": "ok"})
+    return Response({"status": "ok"})
 
 
-@require_GET
-def readiness(request: HttpRequest) -> JsonResponse:
+@extend_schema(
+    tags=["Health"],
+    auth=[],
+    responses={200: ReadinessSerializer, 503: ReadinessSerializer},
+)
+@api_view(["GET"])
+@authentication_classes([])
+@permission_classes([AllowAny])
+@throttle_classes([])
+def readiness(request: Request) -> Response:
     """Report whether required backend dependencies are available."""
 
     checks = {
@@ -22,7 +47,7 @@ def readiness(request: HttpRequest) -> JsonResponse:
     }
     all_ready = all(checks.values())
 
-    return JsonResponse(
+    return Response(
         {
             "status": "ready" if all_ready else "not_ready",
             "checks": {

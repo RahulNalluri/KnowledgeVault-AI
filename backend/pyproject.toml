@@ -9,8 +9,12 @@ description = "Secure multi-user RAG platform backend"
 requires-python = ">=3.12,<3.15"
 dependencies = [
     "celery[redis]==5.6.3",
+    "django-cors-headers==4.9.0",
+    "django-filter==26.1",
     "Django==6.0.7",
     "dj-database-url==3.1.2",
+    "djangorestframework==3.17.1",
+    "drf-spectacular==0.30.0",
     "pgvector==0.5.0",
     "Pillow==12.3.0",
     "psycopg[binary]==3.3.4",
