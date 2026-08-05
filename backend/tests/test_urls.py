@@ -14,3 +14,4 @@ def test_api_foundation_route_contracts_are_stable() -> None:
     assert reverse("api-schema") == "/api/v1/schema/"
     assert reverse("api-docs") == "/api/v1/docs/"
     assert reverse("api-root") == "/api/v1/"
+    assert reverse("accounts:register") == "/api/v1/auth/register/"

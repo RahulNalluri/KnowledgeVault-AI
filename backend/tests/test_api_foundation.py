@@ -76,6 +76,9 @@ def test_openapi_schema_includes_health_endpoints(client) -> None:
     assert schema["info"]["title"] == "KnowledgeVault AI API"
     assert "/api/v1/health/live/" in schema["paths"]
     assert "/api/v1/health/ready/" in schema["paths"]
+    registration = schema["paths"]["/api/v1/auth/register/"]["post"]
+    assert registration["tags"] == ["Authentication"]
+    assert "security" not in registration
 
 
 def test_api_documentation_is_public(client) -> None:

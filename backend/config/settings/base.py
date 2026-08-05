@@ -136,6 +136,7 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_RATES": {
         "anon": "60/minute",
         "user": "600/minute",
+        "registration": "5/hour",
     },
     "EXCEPTION_HANDLER": "config.api.exceptions.api_exception_handler",
 }

@@ -2,7 +2,7 @@
 
 KnowledgeVault AI is a planned multi-user retrieval-augmented generation (RAG) platform for securely organizing documents and asking grounded questions across private organizational knowledge bases.
 
-> **Project status:** The backend portion of Phase 1 is complete, while the typed frontend remains pending. Phase 2 now includes the custom email user model and a secure Django REST Framework API foundation; authentication endpoints are the next slice.
+> **Project status:** The backend portion of Phase 1 is complete, while the typed frontend remains pending. Phase 2 now includes the custom email user model, Django REST Framework foundation, and secure account registration; JWT authentication is the next slice.
 
 ## Product vision
 
@@ -122,9 +122,11 @@ Current verification commands:
 
 The pytest command measures branch coverage for `apps` and `config` and fails below 90%.
 
-## Accounts foundation
+## Accounts and registration
 
 The project uses `accounts.User` from its first migration. Users have UUID primary keys, normalized email login identities, full names, optional avatars, active/staff flags, email-verification state, password hashes, login dates, and audit timestamps. PostgreSQL enforces both normal uniqueness and case-insensitive email uniqueness. Django Admin uses the custom model and never exposes password hashes as editable plain text.
+
+`POST /api/v1/auth/register/` creates an account from `email`, `full_name`, and `password`. It normalizes email addresses, applies Django password validation, caps password input length, handles duplicate-email races safely, never returns the password, and uses a dedicated limit of five attempts per hour. Successful registration does not issue tokens; that begins in the JWT authentication slice.
 
 The implemented operational endpoints are:
 
@@ -190,9 +192,9 @@ Screenshots will be added after the relevant UI exists. No mock screenshot is pr
 
 ## Known limitations
 
-- The backend currently contains the accounts, health-check, and REST API foundations; registration, login, and product APIs are not implemented yet.
+- The backend currently contains account registration plus the accounts, health-check, and REST API foundations; login, token refresh/revocation, email verification, password recovery, and product APIs are not implemented yet.
 - The Django API, PostgreSQL/pgvector, Redis, and Celery worker development services are implemented; the frontend is not.
-- Fifty-eight backend tests pass with 100% measured coverage and a 90% minimum gate; broader authentication, domain, integration, security, and frontend suites remain pending.
+- Sixty-nine backend tests pass with 100% measured coverage and a 90% minimum gate; broader authentication, domain, integration, security, and frontend suites remain pending.
 - The repaired local virtual environment is usable but not portable and must not be committed.
 - Production settings fail closed and include an initial secure baseline, but full production hardening remains Phase 13 work.
 - Authentication, storage, streaming, and deployment details remain future architectural decisions.
