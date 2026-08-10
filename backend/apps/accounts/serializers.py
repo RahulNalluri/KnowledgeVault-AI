@@ -1,7 +1,9 @@
+from django.contrib.auth import authenticate
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 
+from .exceptions import InvalidCredentials
 from .models import User
 from .services import AccountAlreadyExistsError, register_user
 
@@ -50,3 +52,42 @@ class RegisteredUserSerializer(serializers.ModelSerializer):
             "created_at",
         )
         read_only_fields = fields
+
+
+class LoginSerializer(serializers.Serializer):
+    email = serializers.EmailField(max_length=254)
+    password = serializers.CharField(
+        write_only=True,
+        max_length=128,
+        trim_whitespace=False,
+    )
+
+    def validate(self, attrs: dict) -> dict:
+        request = self.context["request"]
+        user = authenticate(
+            request=request._request,
+            email=attrs["email"],
+            password=attrs["password"],
+        )
+        if user is None:
+            raise InvalidCredentials
+        attrs["user"] = user
+        return attrs
+
+
+class CSRFTokenSerializer(serializers.Serializer):
+    csrf_token = serializers.CharField(read_only=True)
+
+
+class AccessTokenResponseSerializer(CSRFTokenSerializer):
+    access = serializers.CharField(read_only=True)
+    token_type = serializers.ChoiceField(choices=["Bearer"], read_only=True)
+    expires_in = serializers.IntegerField(read_only=True)
+
+
+class LoginResponseSerializer(AccessTokenResponseSerializer):
+    user = RegisteredUserSerializer(read_only=True)
+
+
+class EmptySerializer(serializers.Serializer):
+    pass

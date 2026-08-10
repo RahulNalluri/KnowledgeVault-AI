@@ -8,7 +8,7 @@ from django.core.exceptions import ImproperlyConfigured
 PRODUCTION_SETTINGS_MODULE = "config.settings.production"
 DEVELOPMENT_SETTINGS_MODULE = "config.settings.development"
 PRODUCTION_ENVIRONMENT = {
-    "DJANGO_SECRET_KEY": "production-test-secret",
+    "DJANGO_SECRET_KEY": "production-test-signing-key-that-is-longer-than-fifty-characters",
     "DJANGO_ALLOWED_HOSTS": "app.example.com",
     "DJANGO_CSRF_TRUSTED_ORIGINS": "https://app.example.com",
     "DATABASE_URL": "postgresql://user:password@database:5432/knowledgevault",
@@ -57,6 +57,8 @@ def test_development_settings_parse_container_hosts_and_origins(monkeypatch) -> 
             "http://localhost:3000",
             "http://127.0.0.1:3000",
         ]
+        assert development.AUTH_REFRESH_COOKIE_SECURE is False
+        assert development.CSRF_COOKIE_SECURE is False
     finally:
         sys.modules.pop(DEVELOPMENT_SETTINGS_MODULE, None)
 
@@ -96,6 +98,20 @@ def test_production_settings_require_https_and_postgresql(monkeypatch) -> None:
         assert production.REDIS_URL == "redis://redis:6379/0"
         assert production.CELERY_BROKER_URL == "redis://redis:6379/1"
         assert production.CORS_ALLOWED_ORIGINS == ["https://app.example.com"]
+        assert production.AUTH_REFRESH_COOKIE_SECURE is True
+        assert production.CSRF_COOKIE_HTTPONLY is True
+    finally:
+        sys.modules.pop(PRODUCTION_SETTINGS_MODULE, None)
+
+
+def test_production_settings_reject_short_signing_key(monkeypatch) -> None:
+    set_production_environment(monkeypatch)
+    monkeypatch.setenv("DJANGO_SECRET_KEY", "too-short")
+    sys.modules.pop(PRODUCTION_SETTINGS_MODULE, None)
+
+    try:
+        with pytest.raises(ImproperlyConfigured, match="at least 50"):
+            importlib.import_module(PRODUCTION_SETTINGS_MODULE)
     finally:
         sys.modules.pop(PRODUCTION_SETTINGS_MODULE, None)
 
@@ -106,12 +122,19 @@ def test_rest_api_defaults_are_secure_and_versioned() -> None:
     assert api_settings["DEFAULT_PERMISSION_CLASSES"] == [
         "rest_framework.permissions.IsAuthenticated"
     ]
+    assert api_settings["DEFAULT_AUTHENTICATION_CLASSES"][0] == (
+        "rest_framework_simplejwt.authentication.JWTAuthentication"
+    )
     assert api_settings["DEFAULT_RENDERER_CLASSES"] == ["rest_framework.renderers.JSONRenderer"]
     assert api_settings["DEFAULT_PAGINATION_CLASS"] == (
         "config.api.pagination.DefaultPageNumberPagination"
     )
     assert settings.SPECTACULAR_SETTINGS["SCHEMA_PATH_PREFIX"] == r"/api/v1"
     assert settings.CORS_ALLOW_CREDENTIALS is True
+    assert settings.SIMPLE_JWT["ROTATE_REFRESH_TOKENS"] is True
+    assert settings.SIMPLE_JWT["BLACKLIST_AFTER_ROTATION"] is True
+    assert settings.SIMPLE_JWT["CHECK_REVOKE_TOKEN"] is True
+    assert settings.REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]["login_identity"] == ("5/hour")
     assert settings.MIDDLEWARE.index("corsheaders.middleware.CorsMiddleware") < (
         settings.MIDDLEWARE.index("django.middleware.common.CommonMiddleware")
     )

@@ -52,7 +52,7 @@ def test_api_preflight_allows_configured_frontend(client) -> None:
 def test_api_root_requires_authentication(client, django_user_model) -> None:
     response = client.get(reverse("api-root"))
 
-    assert response.status_code == 403
+    assert response.status_code == 401
     assert response.json()["error"]["code"] == "NOT_AUTHENTICATED"
 
     user = django_user_model.objects.create_user(
@@ -79,6 +79,15 @@ def test_openapi_schema_includes_health_endpoints(client) -> None:
     registration = schema["paths"]["/api/v1/auth/register/"]["post"]
     assert registration["tags"] == ["Authentication"]
     assert "security" not in registration
+    for path, method in (
+        ("/api/v1/auth/csrf/", "get"),
+        ("/api/v1/auth/login/", "post"),
+        ("/api/v1/auth/refresh/", "post"),
+        ("/api/v1/auth/logout/", "post"),
+    ):
+        operation = schema["paths"][path][method]
+        assert operation["tags"] == ["Authentication"]
+        assert "security" not in operation
 
 
 def test_api_documentation_is_public(client) -> None:

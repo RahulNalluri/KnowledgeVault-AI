@@ -2,7 +2,7 @@
 
 KnowledgeVault AI is a planned multi-user retrieval-augmented generation (RAG) platform for securely organizing documents and asking grounded questions across private organizational knowledge bases.
 
-> **Project status:** The backend portion of Phase 1 is complete, while the typed frontend remains pending. Phase 2 now includes the custom email user model, Django REST Framework foundation, and secure account registration; JWT authentication is the next slice.
+> **Project status:** The backend portion of Phase 1 is complete, while the typed frontend remains pending. Phase 2 now includes secure registration plus JWT login, refresh rotation, and logout/revocation; the current-user profile and password-management APIs are next.
 
 ## Product vision
 
@@ -41,12 +41,12 @@ The diagram above summarizes the planned service boundaries. Implementation is p
 
 | Area | Planned technology |
 | --- | --- |
-| Backend | Python 3.12+ (3.13.5 verified), Django 6.0.7 |
+| Backend | Python 3.12+ (3.13.5 verified), Django 5.2.16 LTS |
 | Tasks | Celery 5.6 with Redis 8.2 as the broker |
 | Data | PostgreSQL, pgvector, PostgreSQL full-text search |
 | AI | Sentence Transformers behind an embedding interface; OpenRouter behind an LLM interface |
 | Frontend | Next.js, React, TypeScript, Tailwind CSS, accessible UI primitives |
-| API | Django REST Framework 3.17.1, django-filter, CORS allow-listing, and OpenAPI via drf-spectacular |
+| API | Django REST Framework 3.17.1, Simple JWT 5.5.1, django-filter, CORS allow-listing, and OpenAPI via drf-spectacular |
 | Infrastructure | Docker Compose, Nginx, Gunicorn/Uvicorn, S3-compatible production storage |
 | Quality | pytest, pytest-cov, Ruff, mypy where practical, frontend unit/E2E tests, GitHub Actions |
 
@@ -122,11 +122,20 @@ Current verification commands:
 
 The pytest command measures branch coverage for `apps` and `config` and fails below 90%.
 
-## Accounts and registration
+## Accounts and authentication
 
 The project uses `accounts.User` from its first migration. Users have UUID primary keys, normalized email login identities, full names, optional avatars, active/staff flags, email-verification state, password hashes, login dates, and audit timestamps. PostgreSQL enforces both normal uniqueness and case-insensitive email uniqueness. Django Admin uses the custom model and never exposes password hashes as editable plain text.
 
 `POST /api/v1/auth/register/` creates an account from `email`, `full_name`, and `password`. It normalizes email addresses, applies Django password validation, caps password input length, handles duplicate-email races safely, never returns the password, and uses a dedicated limit of five attempts per hour. Successful registration does not issue tokens; that begins in the JWT authentication slice.
+
+Browser authentication uses a five-minute access token returned in JSON and a rotating seven-day refresh token stored only in an HttpOnly cookie. Login, refresh, and logout require Django CSRF validation. Refresh rotation blacklists the previous token, logout revokes the current refresh token, and password changes invalidate already-issued access and refresh tokens. Login responses never expose refresh tokens, authentication responses are marked `no-store`, and targeted login throttles limit repeated credential attempts.
+
+The authentication endpoints are:
+
+- `GET /api/v1/auth/csrf/` — creates a CSRF cookie and returns the corresponding header token.
+- `POST /api/v1/auth/login/` — validates credentials, returns an access token, and sets the refresh cookie.
+- `POST /api/v1/auth/refresh/` — rotates the refresh cookie and returns a new access token.
+- `POST /api/v1/auth/logout/` — revokes the refresh token and clears its cookie.
 
 The implemented operational endpoints are:
 
@@ -172,7 +181,7 @@ The backend container waits for healthy PostgreSQL and Redis services, runs as a
 
 Tasks use JSON-only messages, late acknowledgement, one-message prefetch, bounded execution time, and no result backend by default. Domain workflows will store durable progress and outcomes in PostgreSQL when their models are introduced.
 
-Migrations are applied explicitly rather than during container startup. The initial accounts and Django migrations are now safe to apply because the custom user model was created first.
+Migrations are applied explicitly rather than during container startup. The initial accounts/Django migrations and Simple JWT blacklist migrations are applied in the development database.
 
 ## API documentation
 
@@ -192,9 +201,9 @@ Screenshots will be added after the relevant UI exists. No mock screenshot is pr
 
 ## Known limitations
 
-- The backend currently contains account registration plus the accounts, health-check, and REST API foundations; login, token refresh/revocation, email verification, password recovery, and product APIs are not implemented yet.
+- The backend currently contains registration, JWT login/refresh/logout, and the accounts, health-check, and REST API foundations; current-user profile, email verification, password management/recovery, and product APIs are not implemented yet.
 - The Django API, PostgreSQL/pgvector, Redis, and Celery worker development services are implemented; the frontend is not.
-- Sixty-nine backend tests pass with 100% measured coverage and a 90% minimum gate; broader authentication, domain, integration, security, and frontend suites remain pending.
+- Eighty-six backend tests pass with 100% measured coverage and a 90% minimum gate; broader account, domain, integration, security, and frontend suites remain pending.
 - The repaired local virtual environment is usable but not portable and must not be committed.
 - Production settings fail closed and include an initial secure baseline, but full production hardening remains Phase 13 work.
 - Authentication, storage, streaming, and deployment details remain future architectural decisions.

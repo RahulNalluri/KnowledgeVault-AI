@@ -15,3 +15,7 @@ def test_api_foundation_route_contracts_are_stable() -> None:
     assert reverse("api-docs") == "/api/v1/docs/"
     assert reverse("api-root") == "/api/v1/"
     assert reverse("accounts:register") == "/api/v1/auth/register/"
+    assert reverse("accounts:csrf") == "/api/v1/auth/csrf/"
+    assert reverse("accounts:login") == "/api/v1/auth/login/"
+    assert reverse("accounts:refresh") == "/api/v1/auth/refresh/"
+    assert reverse("accounts:logout") == "/api/v1/auth/logout/"

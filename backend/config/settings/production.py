@@ -16,6 +16,8 @@ def _required_environment_value(name: str) -> str:
 
 
 SECRET_KEY = _required_environment_value("DJANGO_SECRET_KEY")
+if len(SECRET_KEY) < 50:
+    raise ImproperlyConfigured("DJANGO_SECRET_KEY must be at least 50 characters.")
 DEBUG = False
 ALLOWED_HOSTS = [
     host.strip()

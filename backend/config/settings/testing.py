@@ -2,8 +2,10 @@
 
 from .base import *  # noqa: F403
 
-SECRET_KEY = "knowledgevault-test-only-key"
+SECRET_KEY = "knowledgevault-test-only-signing-key-that-is-longer-than-fifty-characters"
 DEBUG = False
+AUTH_REFRESH_COOKIE_SECURE = False
+CSRF_COOKIE_SECURE = False
 
 DATABASES = {
     "default": {
@@ -18,3 +20,5 @@ REDIS_URL = "redis://unused:6379/15"
 CELERY_BROKER_URL = "memory://"
 CELERY_TASK_ALWAYS_EAGER = True
 CELERY_TASK_EAGER_PROPAGATES = True
+
+PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]

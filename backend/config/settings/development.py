@@ -16,6 +16,8 @@ SECRET_KEY = os.getenv(
     "knowledgevault-development-only-key-not-for-production",
 )
 DEBUG = os.getenv("DJANGO_DEBUG", "true").lower() in {"1", "true", "yes", "on"}
+AUTH_REFRESH_COOKIE_SECURE = False
+CSRF_COOKIE_SECURE = False
 ALLOWED_HOSTS = [
     host.strip()
     for host in os.getenv("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
