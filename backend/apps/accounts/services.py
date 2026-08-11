@@ -75,3 +75,10 @@ def revoke_refresh_token(encoded_token: str | None) -> None:
         RefreshToken(encoded_token).blacklist()
     except TokenError:
         return
+
+
+@transaction.atomic
+def update_user_profile(*, user: User, full_name: str) -> User:
+    user.full_name = User.objects._clean_full_name(full_name)
+    user.save(update_fields=["full_name", "updated_at"])
+    return user

@@ -2,7 +2,7 @@
 
 KnowledgeVault AI is a planned multi-user retrieval-augmented generation (RAG) platform for securely organizing documents and asking grounded questions across private organizational knowledge bases.
 
-> **Project status:** The backend portion of Phase 1 is complete, while the typed frontend remains pending. Phase 2 now includes secure registration plus JWT login, refresh rotation, and logout/revocation; the current-user profile and password-management APIs are next.
+> **Project status:** The backend portion of Phase 1 is complete, while the typed frontend remains pending. Phase 2 now includes secure registration, the JWT lifecycle, and authenticated current-user profile retrieval; password management is next.
 
 ## Product vision
 
@@ -137,6 +137,10 @@ The authentication endpoints are:
 - `POST /api/v1/auth/refresh/` — rotates the refresh cookie and returns a new access token.
 - `POST /api/v1/auth/logout/` — revokes the refresh token and clears its cookie.
 
+The authenticated user endpoint is:
+
+- `GET /api/v1/users/me/` — returns only the current user's safe profile fields and never exposes password or administrative state.
+
 The implemented operational endpoints are:
 
 - `GET /api/v1/health/live/` — confirms the Django process can serve requests.
@@ -201,9 +205,9 @@ Screenshots will be added after the relevant UI exists. No mock screenshot is pr
 
 ## Known limitations
 
-- The backend currently contains registration, JWT login/refresh/logout, and the accounts, health-check, and REST API foundations; current-user profile, email verification, password management/recovery, and product APIs are not implemented yet.
+- The backend currently contains registration, JWT login/refresh/logout, current-user profile retrieval, and the accounts, health-check, and REST API foundations; email verification, password management/recovery, and product APIs are not implemented yet.
 - The Django API, PostgreSQL/pgvector, Redis, and Celery worker development services are implemented; the frontend is not.
-- Eighty-six backend tests pass with 100% measured coverage and a 90% minimum gate; broader account, domain, integration, security, and frontend suites remain pending.
+- Ninety-four backend tests and four subtests pass with 100% measured coverage and a 90% minimum gate; broader account, domain, integration, security, and frontend suites remain pending.
 - The repaired local virtual environment is usable but not portable and must not be committed.
 - Production settings fail closed and include an initial secure baseline, but full production hardening remains Phase 13 work.
 - Authentication, storage, streaming, and deployment details remain future architectural decisions.

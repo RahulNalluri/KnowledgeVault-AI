@@ -19,3 +19,4 @@ def test_api_foundation_route_contracts_are_stable() -> None:
     assert reverse("accounts:login") == "/api/v1/auth/login/"
     assert reverse("accounts:refresh") == "/api/v1/auth/refresh/"
     assert reverse("accounts:logout") == "/api/v1/auth/logout/"
+    assert reverse("users:me") == "/api/v1/users/me/"

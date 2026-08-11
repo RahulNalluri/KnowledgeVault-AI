@@ -89,6 +89,12 @@ def test_openapi_schema_includes_health_endpoints(client) -> None:
         assert operation["tags"] == ["Authentication"]
         assert "security" not in operation
 
+    profile = schema["paths"]["/api/v1/users/me/"]
+    assert profile["get"]["tags"] == ["Users"]
+    assert profile["patch"]["tags"] == ["Users"]
+    assert profile["get"]["security"]
+    assert profile["patch"]["security"]
+
 
 def test_api_documentation_is_public(client) -> None:
     response = client.get(reverse("api-docs"))

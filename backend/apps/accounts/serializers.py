@@ -1,3 +1,5 @@
+from collections.abc import Mapping
+
 from django.contrib.auth import authenticate
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
@@ -5,7 +7,7 @@ from rest_framework import serializers
 
 from .exceptions import InvalidCredentials
 from .models import User
-from .services import AccountAlreadyExistsError, register_user
+from .services import AccountAlreadyExistsError, register_user, update_user_profile
 
 DUPLICATE_EMAIL_MESSAGE = "An account with this email address already exists."
 
@@ -91,3 +93,51 @@ class LoginResponseSerializer(AccessTokenResponseSerializer):
 
 class EmptySerializer(serializers.Serializer):
     pass
+
+
+class CurrentUserProfileSerializer(serializers.ModelSerializer):
+    avatar = serializers.ImageField(read_only=True, allow_null=True)
+
+    class Meta:
+        model = User
+        fields = (
+            "id",
+            "email",
+            "full_name",
+            "avatar",
+            "is_email_verified",
+            "date_joined",
+            "last_login",
+            "created_at",
+            "updated_at",
+        )
+        read_only_fields = fields
+
+
+class CurrentUserProfileUpdateSerializer(serializers.Serializer):
+    full_name = serializers.CharField(
+        min_length=1,
+        max_length=255,
+        trim_whitespace=True,
+        required=False,
+    )
+
+    def to_internal_value(self, data):
+        if isinstance(data, Mapping):
+            forbidden_fields = set(data) - {"full_name"}
+            if forbidden_fields:
+                raise serializers.ValidationError(
+                    {
+                        field: ["This field cannot be updated here."]
+                        for field in sorted(forbidden_fields)
+                    }
+                )
+        return super().to_internal_value(data)
+
+    def update(self, instance: User, validated_data: dict) -> User:
+        if "full_name" not in validated_data:
+            return instance
+        return update_user_profile(
+            user=instance,
+            full_name=validated_data["full_name"],
+        )

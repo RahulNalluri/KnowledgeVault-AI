@@ -5,5 +5,6 @@ router = DefaultRouter()
 
 urlpatterns = [
     path("auth/", include("apps.accounts.urls")),
+    path("users/", include("apps.accounts.user_urls")),
     *router.urls,
 ]
