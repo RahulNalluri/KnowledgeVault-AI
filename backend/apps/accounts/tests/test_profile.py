@@ -36,6 +36,18 @@ def test_profile_requires_authentication(api_client) -> None:
 
 
 @pytest.mark.django_db
+def test_profile_patch_requires_authentication(api_client) -> None:
+    response = api_client.patch(
+        reverse("users:me"),
+        {"full_name": "Unauthorized Change"},
+        format="json",
+    )
+
+    assert response.status_code == 401
+    assert response.json()["error"]["code"] == "NOT_AUTHENTICATED"
+
+
+@pytest.mark.django_db
 def test_profile_returns_only_safe_current_user_fields(api_client, user) -> None:
     authenticate(api_client, user)
 
@@ -64,6 +76,7 @@ def test_profile_returns_only_safe_current_user_fields(api_client, user) -> None
 @pytest.mark.django_db
 def test_profile_patch_updates_and_normalizes_full_name(api_client, user) -> None:
     authenticate(api_client, user)
+    original_updated_at = user.updated_at
 
     response = api_client.patch(
         reverse("users:me"),
@@ -75,6 +88,8 @@ def test_profile_patch_updates_and_normalizes_full_name(api_client, user) -> Non
     assert response.json()["full_name"] == "Updated Person"
     user.refresh_from_db()
     assert user.full_name == "Updated Person"
+    assert user.updated_at > original_updated_at
+    assert response.json()["updated_at"] == user.updated_at.isoformat().replace("+00:00", "Z")
 
 
 @pytest.mark.django_db
@@ -160,3 +175,21 @@ def test_inactive_user_cannot_use_existing_profile_token(api_client, user) -> No
 
     assert response.status_code == 401
     assert response.json()["error"]["code"] == "AUTHENTICATION_FAILED"
+
+
+@pytest.mark.django_db
+def test_inactive_user_cannot_patch_profile(api_client, user) -> None:
+    authenticate(api_client, user)
+    user.is_active = False
+    user.save(update_fields=["is_active"])
+
+    response = api_client.patch(
+        reverse("users:me"),
+        {"full_name": "Blocked Change"},
+        format="json",
+    )
+
+    assert response.status_code == 401
+    assert response.json()["error"]["code"] == "AUTHENTICATION_FAILED"
+    user.refresh_from_db()
+    assert user.full_name == "Example Person"

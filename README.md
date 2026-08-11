@@ -2,7 +2,7 @@
 
 KnowledgeVault AI is a planned multi-user retrieval-augmented generation (RAG) platform for securely organizing documents and asking grounded questions across private organizational knowledge bases.
 
-> **Project status:** The backend portion of Phase 1 is complete, while the typed frontend remains pending. Phase 2 now includes secure registration, the JWT lifecycle, and authenticated current-user profile retrieval; password management is next.
+> **Project status:** The backend portion of Phase 1 is complete, while the typed frontend remains pending. Phase 2 now includes secure registration, the JWT lifecycle, and authenticated current-user profile retrieval and updates; password management is next.
 
 ## Product vision
 
@@ -140,6 +140,7 @@ The authentication endpoints are:
 The authenticated user endpoint is:
 
 - `GET /api/v1/users/me/` — returns only the current user's safe profile fields and never exposes password or administrative state.
+- `PATCH /api/v1/users/me/` — updates the current user's full name; email, verification state, avatar, and administrative fields are rejected.
 
 The implemented operational endpoints are:
 
@@ -205,9 +206,9 @@ Screenshots will be added after the relevant UI exists. No mock screenshot is pr
 
 ## Known limitations
 
-- The backend currently contains registration, JWT login/refresh/logout, current-user profile retrieval, and the accounts, health-check, and REST API foundations; email verification, password management/recovery, and product APIs are not implemented yet.
+- The backend currently contains registration, JWT login/refresh/logout, current-user profile retrieval/update, and the accounts, health-check, and REST API foundations; email verification, password management/recovery, and product APIs are not implemented yet.
 - The Django API, PostgreSQL/pgvector, Redis, and Celery worker development services are implemented; the frontend is not.
-- Ninety-four backend tests and four subtests pass with 100% measured coverage and a 90% minimum gate; broader account, domain, integration, security, and frontend suites remain pending.
+- Ninety-six backend tests and four subtests pass with 100% measured coverage and a 90% minimum gate; broader account, domain, integration, security, and frontend suites remain pending.
 - The repaired local virtual environment is usable but not portable and must not be committed.
 - Production settings fail closed and include an initial secure baseline, but full production hardening remains Phase 13 work.
 - Authentication, storage, streaming, and deployment details remain future architectural decisions.
