@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as DjangoUserAdmin
 
-from .models import User
+from .models import EmailVerificationToken, User
 
 
 @admin.register(User)
@@ -52,3 +52,17 @@ class UserAdmin(DjangoUserAdmin):
             },
         ),
     )
+
+
+@admin.register(EmailVerificationToken)
+class EmailVerificationTokenAdmin(admin.ModelAdmin):
+    list_display = ("user", "created_at", "expires_at", "used_at")
+    list_filter = ("created_at", "expires_at", "used_at")
+    search_fields = ("user__email",)
+    readonly_fields = ("id", "user", "token_hash", "created_at", "expires_at", "used_at")
+
+    def has_add_permission(self, request) -> bool:
+        return False
+
+    def has_change_permission(self, request, obj=None) -> bool:
+        return False

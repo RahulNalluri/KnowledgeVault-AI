@@ -2,7 +2,7 @@
 
 KnowledgeVault AI is a planned multi-user retrieval-augmented generation (RAG) platform for securely organizing documents and asking grounded questions across private organizational knowledge bases.
 
-> **Project status:** The backend portion of Phase 1 is complete, while the typed frontend remains pending. Phase 2 now includes secure registration, the JWT lifecycle, authenticated current-user profiles, and secure password changes; email verification and password recovery are next.
+> **Project status:** The backend portion of Phase 1 is complete, while the typed frontend remains pending. Phase 2 now includes secure registration, the JWT lifecycle, authenticated profiles, password changes, and email verification; password recovery is next.
 
 ## Product vision
 
@@ -137,6 +137,8 @@ The authentication endpoints are:
 - `POST /api/v1/auth/refresh/` — rotates the refresh cookie and returns a new access token.
 - `POST /api/v1/auth/logout/` — revokes the refresh token and clears its cookie.
 - `POST /api/v1/auth/password/change/` — confirms the current password, validates and saves a replacement, revokes every existing token, and clears the refresh cookie.
+- `POST /api/v1/auth/email/verification/resend/` — sends a new verification link only to the authenticated user's account email.
+- `POST /api/v1/auth/email/verification/confirm/` — verifies an email using an expiring, single-use token.
 
 The authenticated user endpoint is:
 
@@ -187,7 +189,7 @@ The backend container waits for healthy PostgreSQL and Redis services, runs as a
 
 Tasks use JSON-only messages, late acknowledgement, one-message prefetch, bounded execution time, and no result backend by default. Domain workflows will store durable progress and outcomes in PostgreSQL when their models are introduced.
 
-Migrations are applied explicitly rather than during container startup. The initial accounts/Django migrations and Simple JWT blacklist migrations are applied in the development database.
+Migrations are applied explicitly rather than during container startup. The accounts user/email-verification, Django, and Simple JWT blacklist migrations are applied in the development database.
 
 ## API documentation
 
@@ -207,12 +209,13 @@ Screenshots will be added after the relevant UI exists. No mock screenshot is pr
 
 ## Known limitations
 
-- The backend currently contains registration, JWT login/refresh/logout, current-user profile retrieval/update, password changes, and the accounts, health-check, and REST API foundations; email verification, password recovery, and product APIs are not implemented yet.
+- The backend currently contains registration, JWT login/refresh/logout, current-user profile retrieval/update, password changes, email verification, and the accounts, health-check, and REST API foundations; password recovery and product APIs are not implemented yet.
 - The Django API, PostgreSQL/pgvector, Redis, and Celery worker development services are implemented; the frontend is not.
-- One hundred seven backend tests and four subtests pass with 100% measured coverage and a 90% minimum gate; broader account, domain, integration, security, and frontend suites remain pending.
+- One hundred thirty-two backend tests and four subtests pass with 100% measured coverage and a 90% minimum gate; broader account, domain, integration, security, and frontend suites remain pending.
 - The repaired local virtual environment is usable but not portable and must not be committed.
 - Production settings fail closed and include an initial secure baseline, but full production hardening remains Phase 13 work.
 - Authentication, storage, streaming, and deployment details remain future architectural decisions.
+- Verification email delivery currently runs inline with a ten-second SMTP timeout; a durable email outbox/Celery delivery workflow remains future hardening work.
 
 ## Roadmap
 

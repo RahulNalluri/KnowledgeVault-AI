@@ -1,7 +1,7 @@
 from django.conf import settings
 from django.middleware.csrf import get_token, rotate_token
 from drf_spectacular.utils import extend_schema
-from rest_framework import status
+from rest_framework import serializers, status
 from rest_framework.permissions import AllowAny
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -12,10 +12,17 @@ from config.api.csrf import enforce_csrf
 from config.api.serializers import ErrorResponseSerializer
 
 from .cookies import clear_refresh_cookie, set_refresh_cookie
+from .email_verification import (
+    InvalidEmailVerificationTokenError,
+    confirm_email_verification,
+    send_email_verification,
+)
 from .exceptions import InvalidRefreshToken
 from .serializers import (
     AccessTokenResponseSerializer,
     CSRFTokenSerializer,
+    EmailVerificationConfirmSerializer,
+    EmailVerificationRequestResponseSerializer,
     EmptySerializer,
     LoginResponseSerializer,
     LoginSerializer,
@@ -62,6 +69,7 @@ class RegistrationView(APIView):
         serializer = RegistrationSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
+        send_email_verification(user=user)
         return Response(
             RegisteredUserSerializer(user).data,
             status=status.HTTP_201_CREATED,
@@ -192,3 +200,52 @@ class PasswordChangeView(APIView):
         response = Response(status=status.HTTP_204_NO_CONTENT)
         clear_refresh_cookie(response)
         return _prevent_auth_response_caching(response)
+
+
+class EmailVerificationResendView(APIView):
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "email_verification_resend"
+
+    @extend_schema(
+        tags=["Authentication"],
+        request=EmptySerializer,
+        responses={
+            202: EmailVerificationRequestResponseSerializer,
+            401: ErrorResponseSerializer,
+            429: ErrorResponseSerializer,
+        },
+    )
+    def post(self, request: Request) -> Response:
+        send_email_verification(user=request.user)
+        return Response(
+            {"message": "If verification is required, a new link has been sent."},
+            status=status.HTTP_202_ACCEPTED,
+        )
+
+
+class EmailVerificationConfirmView(APIView):
+    authentication_classes = []
+    permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "email_verification_confirm"
+
+    @extend_schema(
+        tags=["Authentication"],
+        auth=[],
+        request=EmailVerificationConfirmSerializer,
+        responses={
+            204: None,
+            400: ErrorResponseSerializer,
+            429: ErrorResponseSerializer,
+        },
+    )
+    def post(self, request: Request) -> Response:
+        serializer = EmailVerificationConfirmSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            confirm_email_verification(token=serializer.validated_data["token"])
+        except InvalidEmailVerificationTokenError as exc:
+            raise serializers.ValidationError(
+                {"token": ["The verification token is invalid or expired."]}
+            ) from exc
+        return Response(status=status.HTTP_204_NO_CONTENT)

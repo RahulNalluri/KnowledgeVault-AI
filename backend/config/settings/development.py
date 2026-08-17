@@ -51,5 +51,12 @@ DATABASES = {
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6380/0")
 CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://localhost:6380/1")
 
+EMAIL_BACKEND = os.getenv(
+    "DJANGO_EMAIL_BACKEND",
+    "django.core.mail.backends.console.EmailBackend",
+)
+DEFAULT_FROM_EMAIL = os.getenv("KV_DEFAULT_FROM_EMAIL", "no-reply@localhost")
+FRONTEND_URL = os.getenv("KV_FRONTEND_URL", "http://localhost:3000").rstrip("/")
+
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"

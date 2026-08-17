@@ -14,6 +14,12 @@ PRODUCTION_ENVIRONMENT = {
     "DATABASE_URL": "postgresql://user:password@database:5432/knowledgevault",
     "REDIS_URL": "redis://redis:6379/0",
     "CELERY_BROKER_URL": "redis://redis:6379/1",
+    "KV_FRONTEND_URL": "https://app.example.com",
+    "KV_DEFAULT_FROM_EMAIL": "no-reply@example.com",
+    "EMAIL_HOST": "smtp.example.com",
+    "EMAIL_PORT": "587",
+    "EMAIL_HOST_USER": "smtp-user",
+    "EMAIL_HOST_PASSWORD": "smtp-password",
 }
 
 
@@ -97,6 +103,11 @@ def test_production_settings_require_https_and_postgresql(monkeypatch) -> None:
         assert production.DATABASES["default"]["ENGINE"] == ("django.db.backends.postgresql")
         assert production.REDIS_URL == "redis://redis:6379/0"
         assert production.CELERY_BROKER_URL == "redis://redis:6379/1"
+        assert production.FRONTEND_URL == "https://app.example.com"
+        assert production.DEFAULT_FROM_EMAIL == "no-reply@example.com"
+        assert production.EMAIL_HOST == "smtp.example.com"
+        assert production.EMAIL_PORT == 587
+        assert production.EMAIL_USE_TLS is True
         assert production.CORS_ALLOWED_ORIGINS == ["https://app.example.com"]
         assert production.AUTH_REFRESH_COOKIE_SECURE is True
         assert production.CSRF_COOKIE_HTTPONLY is True
@@ -111,6 +122,18 @@ def test_production_settings_reject_short_signing_key(monkeypatch) -> None:
 
     try:
         with pytest.raises(ImproperlyConfigured, match="at least 50"):
+            importlib.import_module(PRODUCTION_SETTINGS_MODULE)
+    finally:
+        sys.modules.pop(PRODUCTION_SETTINGS_MODULE, None)
+
+
+def test_production_settings_reject_non_integer_email_port(monkeypatch) -> None:
+    set_production_environment(monkeypatch)
+    monkeypatch.setenv("EMAIL_PORT", "not-a-port")
+    sys.modules.pop(PRODUCTION_SETTINGS_MODULE, None)
+
+    try:
+        with pytest.raises(ImproperlyConfigured, match="EMAIL_PORT must be an integer"):
             importlib.import_module(PRODUCTION_SETTINGS_MODULE)
     finally:
         sys.modules.pop(PRODUCTION_SETTINGS_MODULE, None)
@@ -136,6 +159,14 @@ def test_rest_api_defaults_are_secure_and_versioned() -> None:
     assert settings.SIMPLE_JWT["CHECK_REVOKE_TOKEN"] is True
     assert settings.REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]["login_identity"] == ("5/hour")
     assert settings.REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]["password_change"] == ("5/hour")
+    assert settings.REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]["email_verification_resend"] == (
+        "3/hour"
+    )
+    assert settings.REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]["email_verification_confirm"] == (
+        "10/hour"
+    )
+    assert settings.EMAIL_VERIFICATION_TOKEN_LIFETIME.total_seconds() == 86400
+    assert settings.EMAIL_TIMEOUT == 10
     assert settings.MIDDLEWARE.index("corsheaders.middleware.CorsMiddleware") < (
         settings.MIDDLEWARE.index("django.middleware.common.CommonMiddleware")
     )

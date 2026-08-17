@@ -99,6 +99,13 @@ def test_openapi_schema_includes_health_endpoints(client) -> None:
     assert password_change["tags"] == ["Authentication"]
     assert password_change["security"]
 
+    verification_confirm = schema["paths"]["/api/v1/auth/email/verification/confirm/"]["post"]
+    verification_resend = schema["paths"]["/api/v1/auth/email/verification/resend/"]["post"]
+    assert verification_confirm["tags"] == ["Authentication"]
+    assert "security" not in verification_confirm
+    assert verification_resend["tags"] == ["Authentication"]
+    assert verification_resend["security"]
+
 
 def test_api_documentation_is_public(client) -> None:
     response = client.get(reverse("api-docs"))

@@ -111,6 +111,11 @@ CORS_ALLOW_CREDENTIALS = True
 CORS_URLS_REGEX = r"^/api/.*$"
 CORS_EXPOSE_HEADERS = ["X-Request-ID"]
 
+FRONTEND_URL = ""
+DEFAULT_FROM_EMAIL = ""
+EMAIL_VERIFICATION_TOKEN_LIFETIME = timedelta(hours=24)
+EMAIL_TIMEOUT = 10
+
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework_simplejwt.authentication.JWTAuthentication",
@@ -145,6 +150,8 @@ REST_FRAMEWORK = {
         "token_refresh": "30/hour",
         "logout": "30/hour",
         "password_change": "5/hour",
+        "email_verification_resend": "3/hour",
+        "email_verification_confirm": "10/hour",
     },
     "EXCEPTION_HANDLER": "config.api.exceptions.api_exception_handler",
 }

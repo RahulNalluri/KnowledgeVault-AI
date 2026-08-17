@@ -2,6 +2,8 @@ from django.urls import path
 
 from .views import (
     CSRFTokenView,
+    EmailVerificationConfirmView,
+    EmailVerificationResendView,
     LoginView,
     LogoutView,
     PasswordChangeView,
@@ -13,6 +15,16 @@ app_name = "accounts"
 
 urlpatterns = [
     path("csrf/", CSRFTokenView.as_view(), name="csrf"),
+    path(
+        "email/verification/confirm/",
+        EmailVerificationConfirmView.as_view(),
+        name="email-verification-confirm",
+    ),
+    path(
+        "email/verification/resend/",
+        EmailVerificationResendView.as_view(),
+        name="email-verification-resend",
+    ),
     path("login/", LoginView.as_view(), name="login"),
     path("refresh/", RefreshView.as_view(), name="refresh"),
     path("logout/", LogoutView.as_view(), name="logout"),

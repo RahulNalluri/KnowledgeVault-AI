@@ -101,6 +101,14 @@ class EmptySerializer(serializers.Serializer):
     pass
 
 
+class EmailVerificationConfirmSerializer(serializers.Serializer):
+    token = serializers.CharField(min_length=32, max_length=128, trim_whitespace=True)
+
+
+class EmailVerificationRequestResponseSerializer(serializers.Serializer):
+    message = serializers.CharField(read_only=True)
+
+
 class PasswordChangeSerializer(serializers.Serializer):
     current_password = serializers.CharField(
         write_only=True,
