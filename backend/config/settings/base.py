@@ -144,6 +144,7 @@ REST_FRAMEWORK = {
         "login_identity": "5/hour",
         "token_refresh": "30/hour",
         "logout": "30/hour",
+        "password_change": "5/hour",
     },
     "EXCEPTION_HANDLER": "config.api.exceptions.api_exception_handler",
 }

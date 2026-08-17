@@ -2,7 +2,7 @@
 
 KnowledgeVault AI is a planned multi-user retrieval-augmented generation (RAG) platform for securely organizing documents and asking grounded questions across private organizational knowledge bases.
 
-> **Project status:** The backend portion of Phase 1 is complete, while the typed frontend remains pending. Phase 2 now includes secure registration, the JWT lifecycle, and authenticated current-user profile retrieval and updates; password management is next.
+> **Project status:** The backend portion of Phase 1 is complete, while the typed frontend remains pending. Phase 2 now includes secure registration, the JWT lifecycle, authenticated current-user profiles, and secure password changes; email verification and password recovery are next.
 
 ## Product vision
 
@@ -136,6 +136,7 @@ The authentication endpoints are:
 - `POST /api/v1/auth/login/` — validates credentials, returns an access token, and sets the refresh cookie.
 - `POST /api/v1/auth/refresh/` — rotates the refresh cookie and returns a new access token.
 - `POST /api/v1/auth/logout/` — revokes the refresh token and clears its cookie.
+- `POST /api/v1/auth/password/change/` — confirms the current password, validates and saves a replacement, revokes every existing token, and clears the refresh cookie.
 
 The authenticated user endpoint is:
 
@@ -206,9 +207,9 @@ Screenshots will be added after the relevant UI exists. No mock screenshot is pr
 
 ## Known limitations
 
-- The backend currently contains registration, JWT login/refresh/logout, current-user profile retrieval/update, and the accounts, health-check, and REST API foundations; email verification, password management/recovery, and product APIs are not implemented yet.
+- The backend currently contains registration, JWT login/refresh/logout, current-user profile retrieval/update, password changes, and the accounts, health-check, and REST API foundations; email verification, password recovery, and product APIs are not implemented yet.
 - The Django API, PostgreSQL/pgvector, Redis, and Celery worker development services are implemented; the frontend is not.
-- Ninety-six backend tests and four subtests pass with 100% measured coverage and a 90% minimum gate; broader account, domain, integration, security, and frontend suites remain pending.
+- One hundred seven backend tests and four subtests pass with 100% measured coverage and a 90% minimum gate; broader account, domain, integration, security, and frontend suites remain pending.
 - The repaired local virtual environment is usable but not portable and must not be committed.
 - Production settings fail closed and include an initial secure baseline, but full production hardening remains Phase 13 work.
 - Authentication, storage, streaming, and deployment details remain future architectural decisions.

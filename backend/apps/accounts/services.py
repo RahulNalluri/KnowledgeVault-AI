@@ -18,6 +18,10 @@ class AccountAlreadyExistsError(Exception):
     """Raised when registration races with an existing email address."""
 
 
+class IncorrectCurrentPasswordError(Exception):
+    """Raised when a password change does not confirm the current password."""
+
+
 @dataclass(frozen=True)
 class TokenPair:
     access: str
@@ -75,6 +79,22 @@ def revoke_refresh_token(encoded_token: str | None) -> None:
         RefreshToken(encoded_token).blacklist()
     except TokenError:
         return
+
+
+@transaction.atomic
+def change_user_password(*, user: User, current_password: str, new_password: str) -> User:
+    locked_user = User.objects.select_for_update().get(pk=user.pk)
+    if not locked_user.check_password(current_password):
+        raise IncorrectCurrentPasswordError
+
+    locked_user.set_password(new_password)
+    locked_user.save(update_fields=["password", "updated_at"])
+
+    outstanding_tokens = OutstandingToken.objects.select_for_update().filter(user=locked_user)
+    for outstanding_token in outstanding_tokens:
+        BlacklistedToken.objects.get_or_create(token=outstanding_token)
+
+    return locked_user
 
 
 @transaction.atomic

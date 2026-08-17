@@ -135,6 +135,7 @@ def test_rest_api_defaults_are_secure_and_versioned() -> None:
     assert settings.SIMPLE_JWT["BLACKLIST_AFTER_ROTATION"] is True
     assert settings.SIMPLE_JWT["CHECK_REVOKE_TOKEN"] is True
     assert settings.REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]["login_identity"] == ("5/hour")
+    assert settings.REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]["password_change"] == ("5/hour")
     assert settings.MIDDLEWARE.index("corsheaders.middleware.CorsMiddleware") < (
         settings.MIDDLEWARE.index("django.middleware.common.CommonMiddleware")
     )

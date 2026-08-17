@@ -19,6 +19,7 @@ from .serializers import (
     EmptySerializer,
     LoginResponseSerializer,
     LoginSerializer,
+    PasswordChangeSerializer,
     RegisteredUserSerializer,
     RegistrationSerializer,
 )
@@ -164,4 +165,30 @@ class LogoutView(APIView):
         response = Response(status=status.HTTP_204_NO_CONTENT)
         clear_refresh_cookie(response)
         rotate_token(request._request)
+        return _prevent_auth_response_caching(response)
+
+
+class PasswordChangeView(APIView):
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "password_change"
+
+    @extend_schema(
+        tags=["Authentication"],
+        request=PasswordChangeSerializer,
+        responses={
+            204: None,
+            400: ErrorResponseSerializer,
+            401: ErrorResponseSerializer,
+            429: ErrorResponseSerializer,
+        },
+    )
+    def post(self, request: Request) -> Response:
+        serializer = PasswordChangeSerializer(
+            request.user,
+            data=request.data,
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        response = Response(status=status.HTTP_204_NO_CONTENT)
+        clear_refresh_cookie(response)
         return _prevent_auth_response_caching(response)
