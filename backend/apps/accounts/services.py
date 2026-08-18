@@ -2,6 +2,7 @@ from dataclasses import dataclass
 
 from django.contrib.auth.models import update_last_login
 from django.db import IntegrityError, transaction
+from django.utils import timezone
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.exceptions import AuthenticationFailed, TokenError
 from rest_framework_simplejwt.token_blacklist.models import (
@@ -11,7 +12,7 @@ from rest_framework_simplejwt.token_blacklist.models import (
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from .exceptions import InvalidRefreshToken
-from .models import User
+from .models import PasswordResetToken, User
 
 
 class AccountAlreadyExistsError(Exception):
@@ -82,6 +83,13 @@ def revoke_refresh_token(encoded_token: str | None) -> None:
 
 
 @transaction.atomic
+def revoke_all_user_refresh_tokens(*, user: User) -> None:
+    outstanding_tokens = OutstandingToken.objects.select_for_update().filter(user=user)
+    for outstanding_token in outstanding_tokens:
+        BlacklistedToken.objects.get_or_create(token=outstanding_token)
+
+
+@transaction.atomic
 def change_user_password(*, user: User, current_password: str, new_password: str) -> User:
     locked_user = User.objects.select_for_update().get(pk=user.pk)
     if not locked_user.check_password(current_password):
@@ -90,9 +98,11 @@ def change_user_password(*, user: User, current_password: str, new_password: str
     locked_user.set_password(new_password)
     locked_user.save(update_fields=["password", "updated_at"])
 
-    outstanding_tokens = OutstandingToken.objects.select_for_update().filter(user=locked_user)
-    for outstanding_token in outstanding_tokens:
-        BlacklistedToken.objects.get_or_create(token=outstanding_token)
+    PasswordResetToken.objects.filter(
+        user=locked_user,
+        used_at__isnull=True,
+    ).update(used_at=timezone.now())
+    revoke_all_user_refresh_tokens(user=locked_user)
 
     return locked_user
 

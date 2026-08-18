@@ -26,4 +26,6 @@ def test_api_foundation_route_contracts_are_stable() -> None:
     assert reverse("accounts:email-verification-resend") == (
         "/api/v1/auth/email/verification/resend/"
     )
+    assert reverse("accounts:password-reset-request") == ("/api/v1/auth/password/reset/request/")
+    assert reverse("accounts:password-reset-confirm") == ("/api/v1/auth/password/reset/confirm/")
     assert reverse("users:me") == "/api/v1/users/me/"

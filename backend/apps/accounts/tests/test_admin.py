@@ -1,8 +1,12 @@
 from django.contrib import admin
 from django.test import SimpleTestCase
 
-from apps.accounts.admin import EmailVerificationTokenAdmin, UserAdmin
-from apps.accounts.models import EmailVerificationToken, User
+from apps.accounts.admin import (
+    EmailVerificationTokenAdmin,
+    PasswordResetTokenAdmin,
+    UserAdmin,
+)
+from apps.accounts.models import EmailVerificationToken, PasswordResetToken, User
 
 
 class UserAdminTests(SimpleTestCase):
@@ -21,6 +25,14 @@ class UserAdminTests(SimpleTestCase):
         model_admin = admin.site._registry[EmailVerificationToken]
 
         self.assertIsInstance(model_admin, EmailVerificationTokenAdmin)
+        self.assertIn("token_hash", model_admin.readonly_fields)
+        self.assertFalse(model_admin.has_add_permission(request=None))
+        self.assertFalse(model_admin.has_change_permission(request=None))
+
+    def test_password_reset_tokens_are_read_only_in_admin(self) -> None:
+        model_admin = admin.site._registry[PasswordResetToken]
+
+        self.assertIsInstance(model_admin, PasswordResetTokenAdmin)
         self.assertIn("token_hash", model_admin.readonly_fields)
         self.assertFalse(model_admin.has_add_permission(request=None))
         self.assertFalse(model_admin.has_change_permission(request=None))

@@ -114,6 +114,7 @@ CORS_EXPOSE_HEADERS = ["X-Request-ID"]
 FRONTEND_URL = ""
 DEFAULT_FROM_EMAIL = ""
 EMAIL_VERIFICATION_TOKEN_LIFETIME = timedelta(hours=24)
+PASSWORD_RESET_TOKEN_LIFETIME = timedelta(hours=1)
 EMAIL_TIMEOUT = 10
 
 REST_FRAMEWORK = {
@@ -152,6 +153,9 @@ REST_FRAMEWORK = {
         "password_change": "5/hour",
         "email_verification_resend": "3/hour",
         "email_verification_confirm": "10/hour",
+        "password_reset_request_ip": "10/hour",
+        "password_reset_request_identity": "3/hour",
+        "password_reset_confirm": "10/hour",
     },
     "EXCEPTION_HANDLER": "config.api.exceptions.api_exception_handler",
 }

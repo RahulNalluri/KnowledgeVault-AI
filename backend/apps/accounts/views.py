@@ -27,11 +27,20 @@ from .serializers import (
     LoginResponseSerializer,
     LoginSerializer,
     PasswordChangeSerializer,
+    PasswordResetConfirmSerializer,
+    PasswordResetRequestResponseSerializer,
+    PasswordResetRequestSerializer,
     RegisteredUserSerializer,
     RegistrationSerializer,
 )
 from .services import issue_token_pair, revoke_refresh_token, rotate_refresh_token
-from .throttles import LoginIdentityRateThrottle, LoginIPRateThrottle
+from .tasks import dispatch_password_reset_email
+from .throttles import (
+    LoginIdentityRateThrottle,
+    LoginIPRateThrottle,
+    PasswordResetIdentityRateThrottle,
+    PasswordResetIPRateThrottle,
+)
 
 
 def _access_response_data(*, access: str, request: Request) -> dict:
@@ -249,3 +258,53 @@ class EmailVerificationConfirmView(APIView):
                 {"token": ["The verification token is invalid or expired."]}
             ) from exc
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class PasswordResetRequestView(APIView):
+    authentication_classes = []
+    permission_classes = [AllowAny]
+    throttle_classes = [PasswordResetIPRateThrottle, PasswordResetIdentityRateThrottle]
+
+    @extend_schema(
+        tags=["Authentication"],
+        auth=[],
+        request=PasswordResetRequestSerializer,
+        responses={
+            202: PasswordResetRequestResponseSerializer,
+            400: ErrorResponseSerializer,
+            429: ErrorResponseSerializer,
+        },
+    )
+    def post(self, request: Request) -> Response:
+        serializer = PasswordResetRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        dispatch_password_reset_email(email=serializer.validated_data["email"])
+        return Response(
+            {"message": "If an active account exists, a password reset link has been sent."},
+            status=status.HTTP_202_ACCEPTED,
+        )
+
+
+class PasswordResetConfirmView(APIView):
+    authentication_classes = []
+    permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "password_reset_confirm"
+
+    @extend_schema(
+        tags=["Authentication"],
+        auth=[],
+        request=PasswordResetConfirmSerializer,
+        responses={
+            204: None,
+            400: ErrorResponseSerializer,
+            429: ErrorResponseSerializer,
+        },
+    )
+    def post(self, request: Request) -> Response:
+        serializer = PasswordResetConfirmSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        response = Response(status=status.HTTP_204_NO_CONTENT)
+        clear_refresh_cookie(response)
+        return _prevent_auth_response_caching(response)

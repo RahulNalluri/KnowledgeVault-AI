@@ -2,7 +2,7 @@
 
 KnowledgeVault AI is a planned multi-user retrieval-augmented generation (RAG) platform for securely organizing documents and asking grounded questions across private organizational knowledge bases.
 
-> **Project status:** The backend portion of Phase 1 is complete, while the typed frontend remains pending. Phase 2 now includes secure registration, the JWT lifecycle, authenticated profiles, password changes, and email verification; password recovery is next.
+> **Project status:** The backend portion of Phase 1 is complete, while the typed frontend remains pending. Phase 2 now includes the secure backend account lifecycle: registration, JWT authentication, profiles, password changes, email verification, and password recovery. Frontend authentication remains pending.
 
 ## Product vision
 
@@ -139,6 +139,8 @@ The authentication endpoints are:
 - `POST /api/v1/auth/password/change/` — confirms the current password, validates and saves a replacement, revokes every existing token, and clears the refresh cookie.
 - `POST /api/v1/auth/email/verification/resend/` — sends a new verification link only to the authenticated user's account email.
 - `POST /api/v1/auth/email/verification/confirm/` — verifies an email using an expiring, single-use token.
+- `POST /api/v1/auth/password/reset/request/` — returns an enumeration-safe response and queues recovery email delivery through Celery.
+- `POST /api/v1/auth/password/reset/confirm/` — validates a single-use recovery token, changes the password, and revokes every existing token.
 
 The authenticated user endpoint is:
 
@@ -187,9 +189,9 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml logs -f backend
 
 The backend container waits for healthy PostgreSQL and Redis services, runs as a non-root user, and becomes healthy only when `/api/v1/health/ready/` succeeds. It intentionally does not apply migrations automatically.
 
-Tasks use JSON-only messages, late acknowledgement, one-message prefetch, bounded execution time, and no result backend by default. Domain workflows will store durable progress and outcomes in PostgreSQL when their models are introduced.
+Tasks use JSON-only messages, late acknowledgement, one-message prefetch, bounded execution time, and no result backend by default. Password-reset requests use a redacted Celery task so account lookup and email delivery happen outside the public request timing path. Domain workflows store durable state in PostgreSQL when required.
 
-Migrations are applied explicitly rather than during container startup. The accounts user/email-verification, Django, and Simple JWT blacklist migrations are applied in the development database.
+Migrations are applied explicitly rather than during container startup. The accounts user, email-verification, password-reset, Django, and Simple JWT blacklist migrations are applied in the development database.
 
 ## API documentation
 
@@ -209,9 +211,9 @@ Screenshots will be added after the relevant UI exists. No mock screenshot is pr
 
 ## Known limitations
 
-- The backend currently contains registration, JWT login/refresh/logout, current-user profile retrieval/update, password changes, email verification, and the accounts, health-check, and REST API foundations; password recovery and product APIs are not implemented yet.
+- The backend account lifecycle now includes registration, JWT login/refresh/logout, profile retrieval/update, password changes, email verification, and password recovery; organization and product-domain APIs are not implemented yet.
 - The Django API, PostgreSQL/pgvector, Redis, and Celery worker development services are implemented; the frontend is not.
-- One hundred thirty-two backend tests and four subtests pass with 100% measured coverage and a 90% minimum gate; broader account, domain, integration, security, and frontend suites remain pending.
+- One hundred fifty-six backend tests and four subtests pass with 100% measured coverage and a 90% minimum gate; broader domain, integration, security, and frontend suites remain pending.
 - The repaired local virtual environment is usable but not portable and must not be committed.
 - Production settings fail closed and include an initial secure baseline, but full production hardening remains Phase 13 work.
 - Authentication, storage, streaming, and deployment details remain future architectural decisions.

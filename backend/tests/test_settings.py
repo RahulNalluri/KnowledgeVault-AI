@@ -166,7 +166,17 @@ def test_rest_api_defaults_are_secure_and_versioned() -> None:
         "10/hour"
     )
     assert settings.EMAIL_VERIFICATION_TOKEN_LIFETIME.total_seconds() == 86400
+    assert settings.PASSWORD_RESET_TOKEN_LIFETIME.total_seconds() == 3600
     assert settings.EMAIL_TIMEOUT == 10
+    assert settings.REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]["password_reset_request_ip"] == (
+        "10/hour"
+    )
+    assert settings.REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]["password_reset_request_identity"] == (
+        "3/hour"
+    )
+    assert settings.REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]["password_reset_confirm"] == (
+        "10/hour"
+    )
     assert settings.MIDDLEWARE.index("corsheaders.middleware.CorsMiddleware") < (
         settings.MIDDLEWARE.index("django.middleware.common.CommonMiddleware")
     )

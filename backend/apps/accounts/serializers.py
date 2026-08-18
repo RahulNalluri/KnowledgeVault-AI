@@ -7,6 +7,11 @@ from rest_framework import serializers
 
 from .exceptions import InvalidCredentials
 from .models import User
+from .password_reset import (
+    InvalidPasswordResetTokenError,
+    InvalidResetPasswordError,
+    reset_password,
+)
 from .services import (
     AccountAlreadyExistsError,
     IncorrectCurrentPasswordError,
@@ -107,6 +112,57 @@ class EmailVerificationConfirmSerializer(serializers.Serializer):
 
 class EmailVerificationRequestResponseSerializer(serializers.Serializer):
     message = serializers.CharField(read_only=True)
+
+
+class PasswordResetRequestSerializer(serializers.Serializer):
+    email = serializers.EmailField(max_length=254)
+
+    def validate_email(self, value: str) -> str:
+        return User.objects._clean_email(value)
+
+
+class PasswordResetRequestResponseSerializer(serializers.Serializer):
+    message = serializers.CharField(read_only=True)
+
+
+class PasswordResetConfirmSerializer(serializers.Serializer):
+    token = serializers.CharField(min_length=32, max_length=128, trim_whitespace=True)
+    new_password = serializers.CharField(
+        write_only=True,
+        min_length=8,
+        max_length=128,
+        trim_whitespace=False,
+    )
+    new_password_confirmation = serializers.CharField(
+        write_only=True,
+        min_length=8,
+        max_length=128,
+        trim_whitespace=False,
+    )
+
+    def validate(self, attrs: dict) -> dict:
+        if attrs["new_password"] != attrs["new_password_confirmation"]:
+            raise serializers.ValidationError(
+                {"new_password_confirmation": ["The new passwords do not match."]}
+            )
+        try:
+            validate_password(attrs["new_password"])
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError({"new_password": list(exc.messages)}) from exc
+        return attrs
+
+    def create(self, validated_data: dict) -> User:
+        try:
+            return reset_password(
+                token=validated_data["token"],
+                new_password=validated_data["new_password"],
+            )
+        except InvalidPasswordResetTokenError as exc:
+            raise serializers.ValidationError(
+                {"token": ["The password reset token is invalid or expired."]}
+            ) from exc
+        except InvalidResetPasswordError as exc:
+            raise serializers.ValidationError({"new_password": exc.messages}) from exc
 
 
 class PasswordChangeSerializer(serializers.Serializer):

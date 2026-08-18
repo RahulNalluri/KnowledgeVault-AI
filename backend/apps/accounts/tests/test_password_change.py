@@ -11,6 +11,7 @@ from rest_framework_simplejwt.token_blacklist.models import (
 )
 
 from apps.accounts.models import User
+from apps.accounts.password_reset import issue_password_reset_token
 from apps.accounts.services import (
     IncorrectCurrentPasswordError,
     change_user_password,
@@ -72,6 +73,7 @@ def test_password_change_requires_authentication(api_client) -> None:
 def test_password_change_updates_password_and_revokes_all_tokens(api_client, user) -> None:
     first_tokens = issue_token_pair(user)
     second_tokens = issue_token_pair(user)
+    issue_password_reset_token(user=user)
     authorize(api_client, first_tokens.access)
     api_client.cookies[settings.AUTH_REFRESH_COOKIE_NAME] = first_tokens.refresh
 
@@ -88,6 +90,7 @@ def test_password_change_updates_password_and_revokes_all_tokens(api_client, use
     assert response.cookies[settings.AUTH_REFRESH_COOKIE_NAME]["max-age"] == 0
     assert OutstandingToken.objects.filter(user=user).count() == 2
     assert BlacklistedToken.objects.filter(token__user=user).count() == 2
+    assert user.password_reset_tokens.filter(used_at__isnull=False).count() == 1
 
     user.refresh_from_db()
     assert user.check_password(NEW_PASSWORD)
