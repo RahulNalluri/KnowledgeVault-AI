@@ -2,7 +2,7 @@
 
 KnowledgeVault AI is a planned multi-user retrieval-augmented generation (RAG) platform for securely organizing documents and asking grounded questions across private organizational knowledge bases.
 
-> **Project status:** The backend portion of Phase 1 is complete, while the typed frontend remains pending. Phase 2 now includes the secure backend account lifecycle: registration, JWT authentication, profiles, password changes, email verification, and password recovery. Frontend authentication remains pending.
+> **Project status:** The backend foundation and typed Next.js authentication frontend are implemented. Phase 2 includes registration, secure browser JWT authentication, profiles, password changes, email verification, password recovery, durable email delivery, protected frontend routes, and account screens. Organization and knowledge-base work is next.
 
 ## Product vision
 
@@ -69,13 +69,19 @@ Current foundation files:
 |   `-- apps/
 |       |-- accounts/
 |       `-- health/
+|-- frontend/
+|   |-- app/
+|   |-- components/
+|   |-- lib/
+|   |-- services/
+|   |-- tests/
+|   |-- Dockerfile
+|   `-- package.json
 |-- docker/
 |   `-- postgres/init/
 |-- docker-compose.yml
 `-- docker-compose.dev.yml
 ```
-
-The `frontend/` and remaining infrastructure services will be created during later Phase 1 slices rather than represented by empty placeholders.
 
 ## Local setup
 
@@ -103,7 +109,7 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
 docker compose -f docker-compose.yml -f docker-compose.dev.yml exec -T backend python manage.py migrate
 ```
 
-The Django API is available on `localhost:8000`, PostgreSQL on `localhost:5432`, and Redis on `localhost:6380`. Redis uses a non-default host port to avoid conflicting with other local projects; containers still reach it on port `6379`. Named volumes preserve database and Redis data when containers stop. Do not use the known development credentials from `.env.example` in any deployed environment.
+The Next.js application is available on `localhost:3000`, the Django API on `localhost:8000`, PostgreSQL on `localhost:5432`, and Redis on `localhost:6380`. Redis uses a non-default host port to avoid conflicting with other local projects; containers still reach it on port `6379`. Named volumes preserve database, Redis, and frontend dependency data when containers stop. Do not use the known development credentials from `.env.example` in any deployed environment.
 
 ## Environment variables
 
@@ -118,6 +124,12 @@ Current verification commands:
 .\venv\Scripts\ruff.exe format --check backend
 .\venv\Scripts\pytest.exe backend --config-file backend\pyproject.toml
 .\venv\Scripts\python.exe backend\manage.py check
+Set-Location frontend
+npm ci
+npm run lint
+npm run typecheck
+npm run test
+npm run build
 ```
 
 The pytest command measures branch coverage for `apps` and `config` and fails below 90%.
@@ -146,6 +158,8 @@ The authenticated user endpoint is:
 
 - `GET /api/v1/users/me/` — returns only the current user's safe profile fields and never exposes password or administrative state.
 - `PATCH /api/v1/users/me/` — updates the current user's full name; email, verification state, avatar, and administrative fields are rejected.
+
+The typed Next.js frontend provides landing, registration, login, forgot-password, reset-password, email-verification, protected dashboard, profile editing, verification resend, password change, and logout experiences. Access tokens remain only in application memory. The refresh credential remains in the backend-managed HttpOnly cookie, and the frontend restores a page-reloaded session through the documented CSRF and refresh flow. Concurrent refresh attempts share one request, and protected routes do not render private content while restoration is unresolved.
 
 The implemented operational endpoints are:
 
@@ -189,9 +203,9 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml logs -f backend
 
 The backend container waits for healthy PostgreSQL and Redis services, runs as a non-root user, and becomes healthy only when `/api/v1/health/ready/` succeeds. It intentionally does not apply migrations automatically.
 
-Tasks use JSON-only messages, late acknowledgement, one-message prefetch, bounded execution time, and no result backend by default. Password-reset requests use a redacted Celery task so account lookup and email delivery happen outside the public request timing path. Domain workflows store durable state in PostgreSQL when required.
+Tasks use JSON-only messages, late acknowledgement, one-message prefetch, bounded execution time, and no result backend by default. Verification and password-reset requests first persist a PostgreSQL outbox row; Celery messages contain only its UUID. Celery Beat recovers broker dispatch failures and abandoned worker leases every minute. Domain workflows store durable state in PostgreSQL when required.
 
-Migrations are applied explicitly rather than during container startup. The accounts user, email-verification, password-reset, Django, and Simple JWT blacklist migrations are applied in the development database.
+Migrations are applied explicitly rather than during container startup. The accounts user, email-verification, password-reset, durable email-delivery, Django, and Simple JWT blacklist migrations are applied in the development database.
 
 ## API documentation
 
@@ -211,13 +225,13 @@ Screenshots will be added after the relevant UI exists. No mock screenshot is pr
 
 ## Known limitations
 
-- The backend account lifecycle now includes registration, JWT login/refresh/logout, profile retrieval/update, password changes, email verification, and password recovery; organization and product-domain APIs are not implemented yet.
-- The Django API, PostgreSQL/pgvector, Redis, and Celery worker development services are implemented; the frontend is not.
-- One hundred fifty-six backend tests and four subtests pass with 100% measured coverage and a 90% minimum gate; broader domain, integration, security, and frontend suites remain pending.
+- The account lifecycle and its frontend foundation are implemented; organization and product-domain APIs are not implemented yet.
+- The Django API, Next.js frontend, PostgreSQL/pgvector, Redis, Celery worker, and Celery Beat services are configured; Nginx and production Compose remain pending.
+- One hundred sixty-six backend tests and four subtests pass with 99.91% measured coverage, while eleven frontend tests cover credential handling, form validation, session restoration, and protected-route behavior. Live end-to-end browser coverage remains pending.
 - The repaired local virtual environment is usable but not portable and must not be committed.
 - Production settings fail closed and include an initial secure baseline, but full production hardening remains Phase 13 work.
-- Authentication, storage, streaming, and deployment details remain future architectural decisions.
-- Verification email delivery currently runs inline with a ten-second SMTP timeout; a durable email outbox/Celery delivery workflow remains future hardening work.
+- Storage, streaming, and deployment details remain future architectural decisions.
+- Durable email delivery is at-least-once; an SMTP acceptance followed by a worker crash may lead to a later replacement email.
 
 ## Roadmap
 
