@@ -1,5 +1,4 @@
 import hashlib
-import logging
 import secrets
 from urllib.parse import urlencode
 
@@ -9,8 +8,6 @@ from django.db import transaction
 from django.utils import timezone
 
 from .models import EmailVerificationToken, User
-
-logger = logging.getLogger(__name__)
 
 
 class InvalidEmailVerificationTokenError(Exception):
@@ -42,31 +39,19 @@ def issue_email_verification_token(*, user: User) -> str | None:
     return token
 
 
-def send_email_verification(*, user: User) -> bool:
-    token = issue_email_verification_token(user=user)
-    if token is None:
-        return False
-
+def send_email_verification_email(*, user: User, token: str) -> None:
     verification_url = f"{settings.FRONTEND_URL}/verify-email?{urlencode({'token': token})}"
-    try:
-        send_mail(
-            subject="Verify your KnowledgeVault AI email",
-            message=(
-                "Verify your KnowledgeVault AI email address by opening this link:\n\n"
-                f"{verification_url}\n\n"
-                "This link expires in 24 hours and can be used only once."
-            ),
-            from_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_list=[user.email],
-            fail_silently=False,
-        )
-    except Exception:
-        logger.exception(
-            "Email verification delivery failed",
-            extra={"user_id": str(user.pk)},
-        )
-        return False
-    return True
+    send_mail(
+        subject="Verify your KnowledgeVault AI email",
+        message=(
+            "Verify your KnowledgeVault AI email address by opening this link:\n\n"
+            f"{verification_url}\n\n"
+            "This link expires in 24 hours and can be used only once."
+        ),
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        recipient_list=[user.email],
+        fail_silently=False,
+    )
 
 
 @transaction.atomic

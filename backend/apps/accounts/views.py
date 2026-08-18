@@ -12,11 +12,8 @@ from config.api.csrf import enforce_csrf
 from config.api.serializers import ErrorResponseSerializer
 
 from .cookies import clear_refresh_cookie, set_refresh_cookie
-from .email_verification import (
-    InvalidEmailVerificationTokenError,
-    confirm_email_verification,
-    send_email_verification,
-)
+from .email_delivery import queue_email_verification, queue_password_reset
+from .email_verification import InvalidEmailVerificationTokenError, confirm_email_verification
 from .exceptions import InvalidRefreshToken
 from .serializers import (
     AccessTokenResponseSerializer,
@@ -34,7 +31,6 @@ from .serializers import (
     RegistrationSerializer,
 )
 from .services import issue_token_pair, revoke_refresh_token, rotate_refresh_token
-from .tasks import dispatch_password_reset_email
 from .throttles import (
     LoginIdentityRateThrottle,
     LoginIPRateThrottle,
@@ -78,7 +74,7 @@ class RegistrationView(APIView):
         serializer = RegistrationSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
-        send_email_verification(user=user)
+        queue_email_verification(user=user)
         return Response(
             RegisteredUserSerializer(user).data,
             status=status.HTTP_201_CREATED,
@@ -225,7 +221,7 @@ class EmailVerificationResendView(APIView):
         },
     )
     def post(self, request: Request) -> Response:
-        send_email_verification(user=request.user)
+        queue_email_verification(user=request.user)
         return Response(
             {"message": "If verification is required, a new link has been sent."},
             status=status.HTTP_202_ACCEPTED,
@@ -278,7 +274,7 @@ class PasswordResetRequestView(APIView):
     def post(self, request: Request) -> Response:
         serializer = PasswordResetRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        dispatch_password_reset_email(email=serializer.validated_data["email"])
+        queue_password_reset(email=serializer.validated_data["email"])
         return Response(
             {"message": "If an active account exists, a password reset link has been sent."},
             status=status.HTTP_202_ACCEPTED,

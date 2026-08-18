@@ -1,52 +1,47 @@
-import logging
+import hashlib
 
 from celery import shared_task
 
-from .models import User
-from .password_reset import (
-    issue_password_reset_token,
-    password_reset_token_is_active,
-    send_password_reset_email,
+from .email_delivery import (
+    dispatch_pending_deliveries,
+    mark_delivery_sent,
+    prepare_delivery,
+    release_delivery_for_retry,
 )
-
-logger = logging.getLogger(__name__)
+from .email_verification import send_email_verification_email
+from .models import AccountEmailDelivery
+from .password_reset import send_password_reset_email
 
 
 @shared_task(bind=True, max_retries=3)
-def deliver_password_reset_email(
-    self,
-    email: str,
-    token: str | None = None,
-) -> bool:
-    user = User.objects.filter(email__iexact=email, is_active=True).first()
-    if user is None:
+def deliver_account_email(self, delivery_id: str) -> bool:
+    prepared = prepare_delivery(delivery_id)
+    if prepared is None:
         return False
-
-    if token is not None and not password_reset_token_is_active(user=user, token=token):
-        return False
-    token = token or issue_password_reset_token(user=user)
-    if token is None:
-        return False
+    delivery, user, token = prepared
 
     try:
-        send_password_reset_email(user=user, token=token)
+        if delivery.purpose == AccountEmailDelivery.Purpose.EMAIL_VERIFICATION:
+            send_email_verification_email(user=user, token=token)
+        else:
+            send_password_reset_email(user=user, token=token)
     except Exception as exc:
+        release_delivery_for_retry(
+            delivery_id=delivery.id,
+            attempt_count=delivery.attempt_count,
+        )
         raise self.retry(
             exc=exc,
-            args=(email, token),
-            argsrepr="(<redacted email>, <redacted token>)",
+            args=(str(delivery.id),),
+            argsrepr=f"(<delivery {delivery.id}>,)",
             countdown=min(60 * (2**self.request.retries), 15 * 60),
         ) from exc
-    return True
+    return mark_delivery_sent(
+        delivery_id=delivery.id,
+        token_hash=hashlib.sha256(token.encode()).hexdigest(),
+    )
 
 
-def dispatch_password_reset_email(*, email: str) -> bool:
-    try:
-        deliver_password_reset_email.apply_async(
-            args=[email],
-            argsrepr="(<redacted email>,)",
-        )
-    except Exception:
-        logger.exception("Password reset email dispatch failed")
-        return False
-    return True
+@shared_task
+def dispatch_pending_account_email_deliveries() -> int:
+    return dispatch_pending_deliveries()

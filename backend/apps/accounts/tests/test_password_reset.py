@@ -11,14 +11,14 @@ from django.urls import reverse
 from django.utils import timezone
 from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken
 
-from apps.accounts.models import PasswordResetToken, User
+from apps.accounts.models import AccountEmailDelivery, PasswordResetToken, User
 from apps.accounts.password_reset import (
     InvalidPasswordResetTokenError,
     issue_password_reset_token,
     reset_password,
 )
 from apps.accounts.services import issue_token_pair
-from apps.accounts.tasks import deliver_password_reset_email
+from apps.accounts.tasks import deliver_account_email
 
 CURRENT_PASSWORD = "Secure-Current-Recovery-Password-731!"
 NEW_PASSWORD = "Secure-Recovered-Password-947!"
@@ -80,6 +80,10 @@ def test_reset_request_is_enumeration_safe_and_stores_only_token_hash(client, us
     assert reset_token.token_hash == hashlib.sha256(raw_token.encode()).hexdigest()
     assert raw_token not in reset_token.token_hash
     assert reset_token.expires_at > timezone.now() + timedelta(minutes=59)
+    sent_delivery = AccountEmailDelivery.objects.get(recipient_email=user.email)
+    assert sent_delivery.status == AccountEmailDelivery.Status.SENT
+    missing_delivery = AccountEmailDelivery.objects.get(recipient_email="missing@example.com")
+    assert missing_delivery.status == AccountEmailDelivery.Status.CANCELLED
 
 
 @pytest.mark.django_db(transaction=True)
@@ -97,6 +101,7 @@ def test_reset_request_is_no_op_for_inactive_user(client, user) -> None:
     assert response.json() == {"message": GENERIC_MESSAGE}
     assert not mail.outbox
     assert not PasswordResetToken.objects.exists()
+    assert AccountEmailDelivery.objects.get().status == AccountEmailDelivery.Status.CANCELLED
 
 
 @pytest.mark.django_db(transaction=True)
@@ -114,30 +119,47 @@ def test_reset_request_survives_email_dispatch_failure(client, user, caplog) -> 
     assert response.status_code == 202
     assert response.json() == {"message": GENERIC_MESSAGE}
     assert PasswordResetToken.objects.filter(user=user).count() == 1
-    assert "Password reset email dispatch failed" in caplog.text
+    delivery = AccountEmailDelivery.objects.get()
+    assert delivery.status == AccountEmailDelivery.Status.PENDING
+    assert delivery.last_error_code == "EMAIL_BACKEND_ERROR"
+    assert "Account email delivery dispatch failed" in caplog.text
 
 
 @pytest.mark.django_db(transaction=True)
 def test_reset_task_handles_token_issue_no_op(user) -> None:
+    delivery = AccountEmailDelivery.objects.create(
+        purpose=AccountEmailDelivery.Purpose.PASSWORD_RESET,
+        recipient_email=user.email,
+    )
     with patch(
-        "apps.accounts.tasks.issue_password_reset_token",
+        "apps.accounts.email_delivery.issue_password_reset_token",
         return_value=None,
     ):
-        result = deliver_password_reset_email.apply(args=[user.email]).get()
+        result = deliver_account_email.apply(args=[str(delivery.id)]).get()
 
     assert result is False
     assert not mail.outbox
+    delivery.refresh_from_db()
+    assert delivery.status == AccountEmailDelivery.Status.CANCELLED
 
 
 @pytest.mark.django_db(transaction=True)
-def test_reset_task_does_not_send_an_invalidated_retry_token(user) -> None:
+def test_reset_task_replaces_an_invalidated_retry_token(user) -> None:
     token = issue_password_reset_token(user=user)
-    PasswordResetToken.objects.update(used_at=timezone.now())
+    old_token = PasswordResetToken.objects.get()
+    delivery = AccountEmailDelivery.objects.create(
+        purpose=AccountEmailDelivery.Purpose.PASSWORD_RESET,
+        recipient_email=user.email,
+        token_hash=old_token.token_hash,
+    )
 
-    result = deliver_password_reset_email.apply(args=[user.email, token]).get()
+    result = deliver_account_email.apply(args=[str(delivery.id)]).get()
 
-    assert result is False
-    assert not mail.outbox
+    assert result is True
+    assert len(mail.outbox) == 1
+    assert token_from_email() != token
+    old_token.refresh_from_db()
+    assert old_token.used_at is not None
 
 
 @pytest.mark.django_db

@@ -11,13 +11,13 @@ from django.urls import reverse
 from django.utils import timezone
 from rest_framework.test import APIClient
 
+from apps.accounts.email_delivery import queue_email_verification
 from apps.accounts.email_verification import (
     InvalidEmailVerificationTokenError,
     confirm_email_verification,
     issue_email_verification_token,
-    send_email_verification,
 )
-from apps.accounts.models import EmailVerificationToken, User
+from apps.accounts.models import AccountEmailDelivery, EmailVerificationToken, User
 from apps.accounts.services import issue_token_pair
 
 PASSWORD = "Secure-Verification-Password-731!"
@@ -54,7 +54,7 @@ def token_from_email(index: int = -1) -> str:
     return parse_qs(urlparse(verification_url).query)["token"][0]
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 def test_registration_sends_verification_email_without_storing_raw_token(client) -> None:
     response = client.post(
         reverse("accounts:register"),
@@ -75,9 +75,13 @@ def test_registration_sends_verification_email_without_storing_raw_token(client)
     assert verification.token_hash == hashlib.sha256(raw_token.encode()).hexdigest()
     assert raw_token not in verification.token_hash
     assert verification.expires_at > timezone.now() + timedelta(hours=23)
+    delivery = AccountEmailDelivery.objects.get()
+    assert delivery.status == AccountEmailDelivery.Status.SENT
+    assert delivery.token_hash == verification.token_hash
+    assert delivery.sent_at is not None
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 def test_registration_succeeds_when_email_delivery_fails(client, caplog) -> None:
     with patch(
         "apps.accounts.email_verification.send_mail",
@@ -96,7 +100,10 @@ def test_registration_succeeds_when_email_delivery_fails(client, caplog) -> None
     assert response.status_code == 201
     assert User.objects.filter(email="delivery-failure@example.com").exists()
     assert EmailVerificationToken.objects.count() == 1
-    assert "Email verification delivery failed" in caplog.text
+    delivery = AccountEmailDelivery.objects.get()
+    assert delivery.status == AccountEmailDelivery.Status.PENDING
+    assert delivery.last_error_code == "EMAIL_BACKEND_ERROR"
+    assert "Account email delivery dispatch failed" in caplog.text
 
 
 @pytest.mark.django_db
@@ -111,7 +118,7 @@ def test_resend_requires_authentication(api_client) -> None:
     assert response.json()["error"]["code"] == "NOT_AUTHENTICATED"
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 def test_resend_sends_only_to_authenticated_user(api_client, user) -> None:
     authorize(api_client, user)
 
@@ -149,9 +156,10 @@ def test_resend_is_no_op_for_inactive_user_service(user) -> None:
     user.is_active = False
     user.save(update_fields=["is_active"])
 
-    assert send_email_verification(user=user) is False
+    assert queue_email_verification(user=user) is False
     assert not mail.outbox
     assert not EmailVerificationToken.objects.exists()
+    assert not AccountEmailDelivery.objects.exists()
 
 
 @pytest.mark.django_db

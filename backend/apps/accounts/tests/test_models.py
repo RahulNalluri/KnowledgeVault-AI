@@ -3,7 +3,7 @@ import uuid
 from django.db import IntegrityError, transaction
 from django.test import TestCase
 
-from apps.accounts.models import User
+from apps.accounts.models import AccountEmailDelivery, User
 
 
 class UserManagerTests(TestCase):
@@ -117,3 +117,24 @@ class UserModelTests(TestCase):
         avatar_field = User._meta.get_field("avatar")
 
         self.assertEqual(avatar_field.upload_to, "avatars/%Y/%m/")
+
+
+class AccountEmailDeliveryModelTests(TestCase):
+    def test_verification_delivery_requires_a_user(self) -> None:
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            AccountEmailDelivery.objects.create(
+                purpose=AccountEmailDelivery.Purpose.EMAIL_VERIFICATION,
+                recipient_email="person@example.com",
+            )
+
+    def test_safe_string_representation_excludes_recipient(self) -> None:
+        delivery = AccountEmailDelivery.objects.create(
+            purpose=AccountEmailDelivery.Purpose.PASSWORD_RESET,
+            recipient_email="private@example.com",
+        )
+
+        self.assertEqual(
+            str(delivery),
+            f"Password reset delivery {delivery.id}",
+        )
+        self.assertNotIn(delivery.recipient_email, str(delivery))

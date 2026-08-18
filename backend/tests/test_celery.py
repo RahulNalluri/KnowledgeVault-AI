@@ -18,3 +18,10 @@ def test_celery_accepts_json_only_and_ignores_results_by_default() -> None:
     assert settings.CELERY_TASK_ACKS_LATE is True
     assert settings.CELERY_TASK_REJECT_ON_WORKER_LOST is True
     assert settings.CELERY_WORKER_PREFETCH_MULTIPLIER == 1
+
+
+def test_celery_beat_recovers_pending_account_email_deliveries() -> None:
+    schedule = settings.CELERY_BEAT_SCHEDULE["dispatch-pending-account-email-deliveries"]
+
+    assert schedule["task"] == "apps.accounts.tasks.dispatch_pending_account_email_deliveries"
+    assert schedule["schedule"] == 60.0

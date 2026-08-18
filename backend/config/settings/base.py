@@ -81,6 +81,12 @@ CELERY_TASK_SOFT_TIME_LIMIT = 25 * 60
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 CELERY_BROKER_TRANSPORT_OPTIONS = {"visibility_timeout": 60 * 60}
 CELERY_WORKER_PREFETCH_MULTIPLIER = 1
+CELERY_BEAT_SCHEDULE = {
+    "dispatch-pending-account-email-deliveries": {
+        "task": "apps.accounts.tasks.dispatch_pending_account_email_deliveries",
+        "schedule": 60.0,
+    },
+}
 
 AUTH_PASSWORD_VALIDATORS = [
     {

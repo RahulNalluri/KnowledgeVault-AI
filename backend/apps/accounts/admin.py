@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as DjangoUserAdmin
 
-from .models import EmailVerificationToken, PasswordResetToken, User
+from .models import AccountEmailDelivery, EmailVerificationToken, PasswordResetToken, User
 
 
 @admin.register(User)
@@ -74,6 +74,42 @@ class PasswordResetTokenAdmin(admin.ModelAdmin):
     list_filter = ("created_at", "expires_at", "used_at")
     search_fields = ("user__email",)
     readonly_fields = ("id", "user", "token_hash", "created_at", "expires_at", "used_at")
+
+    def has_add_permission(self, request) -> bool:
+        return False
+
+    def has_change_permission(self, request, obj=None) -> bool:
+        return False
+
+
+@admin.register(AccountEmailDelivery)
+class AccountEmailDeliveryAdmin(admin.ModelAdmin):
+    list_display = (
+        "purpose",
+        "status",
+        "user",
+        "attempt_count",
+        "created_at",
+        "sent_at",
+    )
+    list_filter = ("purpose", "status", "created_at", "sent_at")
+    search_fields = ("recipient_email", "user__email")
+    readonly_fields = (
+        "id",
+        "purpose",
+        "recipient_email",
+        "user",
+        "status",
+        "attempt_count",
+        "available_at",
+        "dispatched_at",
+        "started_at",
+        "sent_at",
+        "token_hash",
+        "last_error_code",
+        "created_at",
+        "updated_at",
+    )
 
     def has_add_permission(self, request) -> bool:
         return False
